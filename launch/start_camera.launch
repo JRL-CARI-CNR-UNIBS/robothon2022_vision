@@ -5,8 +5,5 @@
     <arg name="align_depth" value="true" />
   </include>
 
-  <node name="board_localization" pkg="board_localization" type="BoardLocalization.py"  output="screen" >
-    <!-- <param name="" type="" value="" /> -->
-  </node>
 
 </launch>
