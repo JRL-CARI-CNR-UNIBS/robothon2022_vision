@@ -452,7 +452,10 @@ def main():
         
         contours_limited.pop(id_circle)
         new_img = getRoi(img,144,669,360,1150)
-        getButtonCell(l_col, contours_limited,crop_img,ScreenPos,KeyLockPos,new_img)
+        
+        ButtonCellPos , id_button_cell = getButtonCell(l_col, contours_limited,crop_img,ScreenPos,KeyLockPos,new_img)
+        contours_limited.pop(id_button_cell)
+        
         ################# APPROX BOARD ##################
         # new_img = new_img = getRoi(img,y,y+h,x,x+w)
         # cv2.imshow('board mask rgb NEWWWW', new_img)
