@@ -215,7 +215,6 @@ def getButtonCell(lab_l, contours_in, crop_img, ScreenPos, KeyLockPos,new_img):
         
         button_cell_pos = np.array([circles[0,0] + shift])
     
-    
         print("Button cell pos: ")
         print(button_cell_pos[0][:2])
         print("Screen pos: ")
@@ -227,7 +226,8 @@ def getButtonCell(lab_l, contours_in, crop_img, ScreenPos, KeyLockPos,new_img):
         attempt+=1
         if(distance > 250) or attempt>=attempt_max:
             distance_from_screen_acceptable = True
-
+        contours_in.pop(id_circle)    
+    return(np.array([circles[0,0] + shift]),id_circle)
             
         
         
