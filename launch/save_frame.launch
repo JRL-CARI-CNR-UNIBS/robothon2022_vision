@@ -5,8 +5,8 @@
     <arg name="align_depth" value="true" />
   </include> -->
 
-  <node name="save_frame_node" pkg="board_localization" type="save_images.py"  output="screen" >
-    <param name="images_path" type="string" value="$(find board_localization)/file/" /> 
+  <node name="save_frame_node" pkg="robothon2022_vision" type="save_images.py"  output="screen" >
+    <param name="images_path" type="string" value="$(find robothon2022_vision)/file/" /> 
   </node>
 
 </launch>
