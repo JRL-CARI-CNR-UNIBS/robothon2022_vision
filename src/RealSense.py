@@ -160,4 +160,11 @@ class RealSense():
         self.subcriberColorFrame.unregister()
         self.subcriberDepthFrame.unregister()
 
-
+    def deproject(self, x,y,depth):
+        # Deprojection : Image frame -> Camera frame (camera_color_optical_frame)
+        # print(self.intrinsics)
+        # print([x,y])
+        # print(depth)
+        deprojection=rs2.rs2_deproject_pixel_to_point(self.intrinsics,[x,y], depth)
+        # print(deprojection)
+        return deprojection

@@ -1,11 +1,13 @@
 #! /usr/bin/env python3
 
+from turtle import Screen
 import rospy
 import cv2
 import os
 import numpy as np
 from sklearn.cluster import KMeans
 from math import cos,sin
+from RealSense import RealSense
 GREEN = '\033[92m'
 YELLOW = '\033[93m'
 RED = '\033[91m'
@@ -50,117 +52,289 @@ def getScreen(a_col_in,contours_in):
 
     return np.array([[cX,cY]]), max_idx
 
-def getRedBlueButtons(value_in_gray,b_col_in,contours_in,new_img):
-    passed_imgs = 0
-    butt_idx    = 0
-    std_max     = 0
-    set_butt    = False
-    roi_list = []
-    print(len(contours_in))
-    
-    buttons_found = False
-    ind=0
-    while not buttons_found:
-        len(contours_in)
-        ind +=1
-        for idx,cnt in enumerate(contours_in):
-            print(idx)
-            area = cv2.contourArea(cnt)
-            print("area")
-            print(area)
-            if (area > 5000) or (area < 700):       #era 1000
-                continue
-            passed_imgs += 1
-            x,y,w,h = cv2.boundingRect(cnt)
-            ROI = b_col_in[y:y+h, x:x+w]
-            cv2.imshow('ROI', ROI)
-            # while cv2.waitKey(33) != ord('a'):
-            #     rospy.sleep(1)
+def getRedBlueButtons(value_in_gray,b_col_in,contours_in,new_img,ScreenPos):
+    rospy.loginfo(RED + "DENTRO RED BLUE" + END)
+    distance_from_screen_acceptable = False
+    while not distance_from_screen_acceptable:
+        passed_imgs = 0
+        butt_idx    = 0
+        std_max     = 0
+        set_butt    = False
+        roi_list = []
+        print(len(contours_in))
+        buttons_found = False
+        ind=0
+        while not buttons_found:
+            len(contours_in)
+            ind +=1
+            for idx,cnt in enumerate(contours_in):
+                print(idx)
+                area = cv2.contourArea(cnt)
+                print("area")
+                print(area)
+                if (area > 5000) or (area < 700):       #era 1000
+                    continue
+                passed_imgs += 1
+                x,y,w,h = cv2.boundingRect(cnt)
+                ROI = b_col_in[y:y+h, x:x+w]
+                cv2.imshow('ROI', ROI)
+                # while cv2.waitKey(33) != ord('a'):
+                #     rospy.sleep(1)
 
-            flattened = ROI.reshape((ROI.shape[0] * ROI.shape[1], 1))
-            #cv2.imshow("flattened red blue button",ROI)
-            clt = KMeans(n_clusters = 3)
-            clt.fit(flattened)
+                flattened = ROI.reshape((ROI.shape[0] * ROI.shape[1], 1))
+                #cv2.imshow("flattened red blue button",ROI)
+                clt = KMeans(n_clusters = 3)
+                clt.fit(flattened)
 
-            # print(np.std(clt.cluster_centers_))
-            if np.std(clt.cluster_centers_) > std_max:
-                butt_idx = idx
-                std_max  = np.std(clt.cluster_centers_)
+                # print(np.std(clt.cluster_centers_))
+                if np.std(clt.cluster_centers_) > std_max:
+                    butt_idx = idx
+                    std_max  = np.std(clt.cluster_centers_)
+                else:
+                    continue
+            print("button idx")
+            print(butt_idx)
+            
+            x,y,w,h           = cv2.boundingRect(contours_in[butt_idx])
+            butt_image_b      = b_col_in[y:y+h, x:x+w]
+            shift             = np.asarray([x,y])
+            butt_image_gray   = value_in_gray[y:y+h, x:x+w]
+            
+            # val_mid           = value_in_gray[int(value_in_gray.shape[1]/2),int(value_in_gray.shape[0]/2)]
+            # corn_width        = 3
+
+            circles = []
+            cv2.imshow("BOTTONIIIIIII"+str(ind), butt_image_gray)
+            contours_test, hierarchy_test = cv2.findContours(butt_image_gray, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE) 
+            
+            img = new_img[y:y+h, x:x+w]
+            cv2.drawContours(img, contours_test, -1, (0, 255, 0), 3)
+            cv2.imshow("CONTORNI Nuovo"+ str(ind),img)        
+            
+            ret, thresh = cv2.threshold(butt_image_gray, 100, 255, 0)           # era 127
+            contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE) 
+            # cv2.drawContours(new_img, contours_in[butt_idx], -1, (0, 255, 0), 3)
+            # cv2.imshow("CONTORNI Nuovo"+ str(ind),new_img) 
+            
+            img_appoggio = new_img.copy()
+            cv2.imshow("appoggio",img_appoggio)
+
+            cv2.imshow("BOTTONI"+str(ind),thresh)
+            # input("aspetta")
+            contours = sorted(contours, key=lambda x: cv2.contourArea(x))
+            mask = np.zeros(butt_image_gray.shape[:2],np.uint8)
+            
+            all_contour_area_little = True
+            # if len(contours)>30:
+            #     print("Reiterate too mutch contours...")
+            #     contours_in.pop(butt_idx)
+            #     continue   
+            for cnt in contours:
+                print("contourArea: ")
+                print(cv2.contourArea(cnt))
+                if cv2.contourArea(cnt) < 150:              # very little circle , se ci saranno casi prendere i 2 più grossi
+                    continue
+                M = cv2.moments(cnt)
+                try:
+                    cX = int(M["m10"] / M["m00"])
+                    cY = int(M["m01"] / M["m00"])
+                    circles.append(np.array([cX,cY]))
+                    cv2.circle(mask,(cX,cY),2,(255,255,255),1)  
+                except:
+                    pass
+                all_contour_area_little = False
+            if all_contour_area_little == False:
+                buttons_found = True
+                print("Buttons found")
             else:
-                continue
-        print("button idx")
-        print(butt_idx)
-        
-        x,y,w,h           = cv2.boundingRect(contours_in[butt_idx])
-        butt_image_b      = b_col_in[y:y+h, x:x+w]
-        shift             = np.asarray([x,y])
-        butt_image_gray   = value_in_gray[y:y+h, x:x+w]
-        
-        # val_mid           = value_in_gray[int(value_in_gray.shape[1]/2),int(value_in_gray.shape[0]/2)]
-        # corn_width        = 3
-
-        circles = []
-        cv2.imshow("BOTTONIIIIIII"+str(ind), butt_image_gray)
-        contours_test, hierarchy_test = cv2.findContours(butt_image_gray, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE) 
-        
-        img = new_img[y:y+h, x:x+w]
-        cv2.drawContours(img, contours_test, -1, (0, 255, 0), 3)
-        cv2.imshow("CONTORNI Nuovo"+ str(ind),img)        
-        
-        ret, thresh = cv2.threshold(butt_image_gray, 100, 255, 0)           # era 127
-        contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE) 
-        # cv2.drawContours(new_img, contours_in[butt_idx], -1, (0, 255, 0), 3)
-        # cv2.imshow("CONTORNI Nuovo"+ str(ind),new_img) 
-        
-        img_appoggio = new_img.copy()
-        cv2.imshow("appoggio",img_appoggio)
-
-        cv2.imshow("BOTTONI"+str(ind),thresh)
-        # input("aspetta")
-        contours = sorted(contours, key=lambda x: cv2.contourArea(x))
-        mask = np.zeros(butt_image_gray.shape[:2],np.uint8)
-        
-        all_contour_area_little = True
-        # if len(contours)>30:
-        #     print("Reiterate too mutch contours...")
-        #     contours_in.pop(butt_idx)
-        #     continue   
-        for cnt in contours:
-            print("contourArea: ")
-            print(cv2.contourArea(cnt))
-            if cv2.contourArea(cnt) < 150:              # very little circle , se ci saranno casi prendere i 2 più grossi
-                continue
-            M = cv2.moments(cnt)
-            try:
-                cX = int(M["m10"] / M["m00"])
-                cY = int(M["m01"] / M["m00"])
-                circles.append(np.array([cX,cY]))
-                cv2.circle(mask,(cX,cY),2,(255,255,255),1)  
-            except:
-                pass
-            all_contour_area_little = False
-        if all_contour_area_little == False:
-            buttons_found = True
-            print("Buttons found")
+                print("Reiterate...")
+                if contours_in:
+                    contours_in.pop(butt_idx)
+                    continue            
+                else:
+                    rospy.loginfo("No buttons found")
+                    break
+            different_from_two = False
+            if len(circles) != 2:
+                print("More or less than 2 buttons found!!!!!!",len(circles))
+                different_from_two = True
+            # cv2.imshow("bot", mask)
+            # cv2.imshow('ROI_buttons_cluster', butt_image_b)
+            # cv2.imshow('ROI_buttons_v', butt_image_gray)
+        print(circles)
+        # return butt_idx
+        if not different_from_two:
+            if butt_image_b[circles[0][1],circles[0][0]] > butt_image_b[circles[1][1],circles[1][0]]:
+                center_coordinate = np.array([circles[0] + shift,circles[1] + shift])
+                #return(np.array([circles[0] + shift,circles[1] + shift]), butt_idx)
+            else:
+                center_coordinate = np.array([circles[1] + shift,circles[0] + shift])
+                #return(np.array([circles[1] + shift,circles[0] + shift]), butt_idx)
         else:
-            print("Reiterate...")
-            contours_in.pop(butt_idx)
-            continue            
+            center_coordinate = np.array([circles[0] + shift])
+                                         
+        distance_from_screen = np.linalg.norm(ScreenPos[0]-center_coordinate[0][:2])
         
-        if len(circles) != 2:
-            print("More or less than 2 buttons found!!!!!!",len(circles))
-        # cv2.imshow("bot", mask)
-        # cv2.imshow('ROI_buttons_cluster', butt_image_b)
-        # cv2.imshow('ROI_buttons_v', butt_image_gray)
+        print("Screen pos:")
+        print(ScreenPos[0])
+        print("Center coordinate: ")
 
-    # return butt_idx
+        print(center_coordinate[0][:2])
+        print(distance_from_screen)
+        if distance_from_screen>240:
+            distance_from_screen_acceptable = True
+            rospy.loginfo(GREEN + "Distante giusto" + END)
+        else:
+            rospy.loginfo(GREEN + "Troppo poco distante" + END)
+            if contours_in:
+                contours_in.pop(butt_idx)
+            else:
+                rospy.loginfo("No buttons found")
+                break 
+             
+    
+    
+    return center_coordinate, butt_idx
+    # rospy.loginfo(RED + "Red blue button identification" + END)
+    # passed_imgs = 0
+    # butt_idx    = 0
+    # std_max     = 0
+    # set_butt    = False
+    # roi_list = []
+    # print(len(contours_in))
+    
+    # cv2.drawContours(new_img, contours_in, -1, (0, 255, 0), 3)
+    # cv2.imshow("PRIMA DI RED",new_img) 
+    
+    # ind=0
+    # buttons_found = False
+    # distance_acceptable = False
+    # while not distance_acceptable:   
+    #     while not buttons_found:        # not little
+    #         for idx,cnt in enumerate(contours_in):
+    #             print(idx)
+    #             area = cv2.contourArea(cnt)
+    #             print("area")
+    #             print(area)
+    #             if (area > 5000) or (area < 700):       #era 1000
+    #                 continue
+    #             passed_imgs += 1
+    #             x,y,w,h = cv2.boundingRect(cnt)
+    #             ROI = b_col_in[y:y+h, x:x+w]
+    #             cv2.imshow('ROI'+ str(idx), ROI)
+    #             # while cv2.waitKey(33) != ord('a'):
+    #             #     rospy.sleep(1)
 
-    if butt_image_b[circles[0][1],circles[0][0]] > butt_image_b[circles[1][1],circles[1][0]]:
-        return(np.array([circles[0] + shift,circles[1] + shift]), butt_idx)
-    else:
-        return(np.array([circles[1] + shift,circles[0] + shift]), butt_idx)
+    #             flattened = ROI.reshape((ROI.shape[0] * ROI.shape[1], 1))
+    #             #cv2.imshow("flattened red blue button",ROI)
+    #             clt = KMeans(n_clusters = 3)
+    #             clt.fit(flattened)
+
+    #             print(np.std(clt.cluster_centers_))
+    #             if np.std(clt.cluster_centers_) > std_max:
+    #                 butt_idx = idx
+    #                 std_max  = np.std(clt.cluster_centers_)
+    #             # else:
+    #             #     continue
+            
+    #         rospy.loginfo(RED+"id bottoneeeee" + END)
+    #         print("button idx")
+    #         print(butt_idx)
+    #         len(contours_in)
+    #         std_max     = 0
+    #         ind +=1
+            
+    #         x,y,w,h           = cv2.boundingRect(contours_in[butt_idx])
+    #         butt_image_b      = b_col_in[y:y+h, x:x+w]
+    #         shift             = np.asarray([x,y])
+    #         butt_image_gray   = value_in_gray[y:y+h, x:x+w]
+            
+    #         # val_mid           = value_in_gray[int(value_in_gray.shape[1]/2),int(value_in_gray.shape[0]/2)]
+    #         # corn_width        = 3
+
+    #         circles = []
+    #         cv2.imshow("BOTTONIIIIIII"+str(ind), butt_image_gray)
+    #         contours_test, hierarchy_test = cv2.findContours(butt_image_gray, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE) 
+            
+    #         img = new_img[y:y+h, x:x+w]
+    #         cv2.drawContours(img, contours_test, -1, (0, 255, 0), 3)
+    #         cv2.imshow("CONTORNI Nuovo"+ str(ind),img)        
+            
+    #         ret, thresh = cv2.threshold(butt_image_gray, 100, 255, 0)           # era 127
+    #         contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE) 
+    #         cv2.drawContours(new_img, contours_in[butt_idx], -1, (0, 255, 0), 3)
+    #         cv2.imshow("CONTORNI Nuovo"+ str(ind),new_img) 
+            
+    #         img_appoggio = new_img.copy()
+    #         cv2.imshow("appoggio",img_appoggio)
+
+    #         cv2.imshow("BOTTONI"+str(ind),thresh)
+    #         # input("aspetta")
+    #         contours = sorted(contours, key=lambda x: cv2.contourArea(x))
+    #         mask = np.zeros(butt_image_gray.shape[:2],np.uint8)
+            
+    #         all_contour_area_little = True
+    #         # if len(contours)>30:
+    #         #     print("Reiterate too mutch contours...")
+    #         #     contours_in.pop(butt_idx)
+    #         #     continue   
+    #         for cnt in contours:
+    #             print("contourArea: ")
+    #             print(cv2.contourArea(cnt))
+    #             if cv2.contourArea(cnt) < 150:              # very little circle , se ci saranno casi prendere i 2 più grossi
+    #                 continue
+    #             M = cv2.moments(cnt)
+    #             try:
+    #                 cX = int(M["m10"] / M["m00"])
+    #                 cY = int(M["m01"] / M["m00"])
+    #                 circles.append(np.array([cX,cY]))
+    #                 cv2.circle(mask,(cX,cY),2,(255,255,255),1)  
+    #             except:
+    #                 pass
+    #             all_contour_area_little = False
+    #         if all_contour_area_little == False:
+    #             buttons_found = True
+    #             print("Buttons found")
+    #         else:
+    #             print("Reiterate...")
+    #             if contours_in:
+    #                 contours_in.pop(butt_idx)
+    #             continue            
+            
+    #         if len(circles) != 2:
+    #             print("More or less than 2 buttons found!!!!!!",len(circles))
+    #         # cv2.imshow("bot", mask)
+    #         # cv2.imshow('ROI_buttons_cluster', butt_image_b)
+    #         # cv2.imshow('ROI_buttons_v', butt_image_gray)
+
+    #     # return butt_idx
+
+    #     if butt_image_b[circles[0][1],circles[0][0]] > butt_image_b[circles[1][1],circles[1][0]]:
+    #         center_coordinate = np.array([circles[0] + shift,circles[1] + shift])
+    #         #return(np.array([circles[0] + shift,circles[1] + shift]), butt_idx)
+    #     else:
+    #         center_coordinate = np.array([circles[1] + shift,circles[0] + shift])
+    #         #return(np.array([circles[1] + shift,circles[0] + shift]), butt_idx)
+
+    #     print("Screen pos:")
+    #     print(ScreenPos[0])
+    #     print("Center coordinate: ")
+    #     print(center_coordinate)
+    #     print(center_coordinate[0][:2])
+    #     distance_from_screen = np.linalg.norm(ScreenPos[0]-center_coordinate[0][:2])
+    #     print
+    #     print(center_coordinate)
+    #     if distance_from_screen>240:
+    #         distance_acceptable = True
+    #     rospy.loginfo(RED + "Troppo poco distante" + END)
+        
+    #     print(distance_from_screen)
+    #     # print(contours_in)
+    #     #contours_in.pop(butt_idx)
+    # return center_coordinate, butt_idx
 
 def getButtonCell(lab_l, contours_in, crop_img, ScreenPos, KeyLockPos,new_img):
+    rospy.loginfo(RED + "Get button cell identification" + END)
     distance_from_screen_acceptable = False
     print(len(contours_in))
     cv2.drawContours(new_img,contours_in,-1, (0, 255, 0), 3)
@@ -168,11 +342,14 @@ def getButtonCell(lab_l, contours_in, crop_img, ScreenPos, KeyLockPos,new_img):
     
     attempt_max = len(contours_in)
     attempt = 0
+    attempt_max_reached = False
     while not distance_from_screen_acceptable:    
         ecc_list = []
         for idx,cnt in enumerate(contours_in):
             hull = cv2.convexHull(cnt)
             area = cv2.contourArea(hull)
+            rospy.loginfo(RED + "--------AREA-------" + END)
+            print(area)
             peri = cv2.arcLength(hull,True)
             ecc  = (4 * np.pi * area)/(peri*peri)
             ecc_list.append(ecc)
@@ -209,6 +386,38 @@ def getButtonCell(lab_l, contours_in, crop_img, ScreenPos, KeyLockPos,new_img):
             cv2.circle(ROI_key,(int(i[0]),int(i[1])),i[2],(255,250,250),1)
             cv2.circle(ROI_key,(int(i[0]),int(i[1])),2,(250,250,250),1)
             cv2.imshow("pila bottone",ROI_key)
+        import traceback    
+        if 0:
+            cv2.namedWindow('image')
+            def nothing(x):
+                pass
+            cv2.createTrackbar('Param 1','image',150,200,nothing)
+            cv2.createTrackbar('Param 2','image',80,100,nothing)
+
+            while cv2.waitKey(33) != ord('a'):
+                butt_image_gray_copy=ROI_key.copy()
+                cv2.imshow('image',butt_image_gray_copy)
+                #To Get Parameter values from Trackbar Values
+                para1 = cv2.getTrackbarPos('Param 1','image')
+                para2 = cv2.getTrackbarPos('Param 2','image')
+
+                
+                try:
+                    print(para1,para2)
+                    circles = cv2.HoughCircles(butt_image_gray_copy,cv2.HOUGH_GRADIENT,1.2,15,param1=para1,param2=para2,minRadius=10,maxRadius=25)
+                    circles = np.uint16(np.around(circles))
+                    print(circles)
+                    for i in circles[0,:]:
+                        cv2.circle(butt_image_gray_copy,(int(i[0]),int(i[1])),i[2],(255,250,250),1)
+                        cv2.circle(butt_image_gray_copy,(int(i[0]),int(i[1])),2,(250,250,250),1)
+                except:
+                    traceback.print_exc()
+                    pass
+                #For drawing Hough Circles
+                
+                cv2.imshow('image', butt_image_gray_copy)
+        
+        
         circles = np.uint16(np.around(circles))
         print("circles*******************************")
         print(circles[0,:])
@@ -224,14 +433,26 @@ def getButtonCell(lab_l, contours_in, crop_img, ScreenPos, KeyLockPos,new_img):
         distance = np.linalg.norm(button_cell_pos[0][:2]-ScreenPos)
         print(distance)
         attempt+=1
-        if(distance > 250) or attempt>=attempt_max:
+        if(distance > 250):
             distance_from_screen_acceptable = True
+            # if attempt>=attempt_max:
+            #     print("Button cell not identified")
+        if(attempt>=attempt_max):
+            attempt_max_reached = True
+            print("Button cell not identified")
+            break      
         contours_in.pop(id_circle)    
-    return(np.array([circles[0,0] + shift]),id_circle)
-            
+    
+    if not attempt_max_reached:
+        rospy.loginfo(RED + "ID button cell" + END)
+        print(id_circle)
+        return(np.array([circles[0,0] + shift]),id_circle)                                              ####Da verificare
+    else:
+        raise Exception            
         
         
 def getKeyLock(lab_l_in,contours_in,orig,ScreenPos,new_img):
+    rospy.loginfo(RED + "Get key lock identification" + END)
     import traceback
     print("N contorni:")
     print(len(contours_in))
@@ -378,13 +599,15 @@ def main():
     #     return 0
     
     images_folder_path = "/home/samuele/projects/robothon_2022_ws/src/robothon2022_vision/file"
-    
-    if True:
-        single_image_name = "/frame_1.png"
-    # for single_image_name in os.listdir(images_folder_path):
-    #     img = cv2.imread(os.path.join(images_folder_path,single_image_name))      
-        img = cv2.imread(images_folder_path+single_image_name)      
-
+    realsense=RealSense()
+    realsense.getCameraParam()  #For subscribe camera info usefull for Deprojection
+    realsense.waitCameraInfo()
+    # if True:
+    #     single_image_name = "/frame_16.png"
+    for single_image_name in os.listdir(images_folder_path):
+        img = cv2.imread(os.path.join(images_folder_path,single_image_name))      
+        # img = cv2.imread(images_folder_path+single_image_name)      
+        # 
 
         crop_img      = img[144:669, 360:1150]
         crop_img_copy = img[144:669, 360:1150].copy()
@@ -409,11 +632,12 @@ def main():
         cv2.imshow("b_col", b_col)    
             
         # Threshold and contours 
-        ret,value_th = cv2.threshold(value,90,255,0)
+        ret,value_th = cv2.threshold(value,100,255,0)
         cv2.imshow('VALUE TH', value_th)
 
         board_cnt, contours_limited, contours = getBoardContour(value_th)
-
+        
+        
         print("board contour")
         #print(board_cnt)
         
@@ -430,31 +654,142 @@ def main():
         ret,value_th = cv2.threshold(value,90,255,0)
 
         board_cnt, contours_limited, contours = getBoardContour(value_th)
-        
+        (x,y),(MA,ma),angle = cv2.fitEllipse(board_cnt)
+        rospy.loginfo(RED + "Board angle" + END)
+        print(angle)
         cv2.drawContours(new_img, contours, -1, (0, 255, 0), 3)
         # cv2.imshow("CONTORNI",new_img)
         
         l_col,a_col,b_col    = cv2.split(lab)
         #################################################
         ScreenPos, idx_screen = getScreen(a_col,contours_limited)
+        new_img = getRoi(img,144,669,360,1150)
+        # new_img = getRoi(img,144,669,360,1150)
+        
+        # epsilon = 0.06 * cv2.arcLength(contours_limited[idx_screen], True)
+        # approx = cv2.approxPolyDP(contours_limited[idx_screen], epsilon, True)
+        # cv2.drawContours(new_img, approx, -1, (0, 255, 0), 3)
+        cv2.drawContours(new_img, contours_limited[idx_screen], -1, (0, 255, 0), 3)
+        cv2.imshow("SCREEEEN", new_img)
         contours_limited.pop(idx_screen)
 
         
         print("screeen poss****************************")
         print(ScreenPos)
+        new_img = getRoi(img,144,669,360,1150)
+        print(ScreenPos)
+        
         ################
         new_img = getRoi(img,144,669,360,1150)          # TEMP FOR DEBUG TO SEE NEW CONTOUR
-        RedBlueButPos, id_red_blue_contour  = getRedBlueButtons(saturation,b_col,contours_limited,new_img)
-        ################
+        RedBlueButPos, id_red_blue_contour  = getRedBlueButtons(saturation,b_col,contours_limited,new_img, ScreenPos)
+        new_img = cv2.circle(new_img, (ScreenPos[0][0],ScreenPos[0][1]), 5, color = (255, 0, 0), thickness = 2)
+        new_img = cv2.circle(new_img, (RedBlueButPos[0][0],RedBlueButPos[0][1]), 5, color = (255, 0, 0), thickness = 2)
+        
+        from math import cos, sin, pi
+        starting_point = (RedBlueButPos[0][0],RedBlueButPos[0][1])
+        
+        # if angle>90:
+        #     angle = angle - 90
+        end_point = (round(RedBlueButPos[0][0] - 200* cos(angle*pi/180)),round(RedBlueButPos[0][1] - 200* sin(angle*pi/180)))
+        print(starting_point)
+        print(end_point)
+        cv2.line(new_img, starting_point, end_point, color = (0, 0, 255), thickness = 3)
+        
         new_img = getRoi(img,144,669,360,1150)
         contours_limited.pop(id_red_blue_contour)
         KeyLockPos , id_circle    = getKeyLock(l_col,contours_limited,crop_img,ScreenPos,new_img)
         
-        contours_limited.pop(id_circle)
+        cv2.line(new_img, (RedBlueButPos[0][0],RedBlueButPos[0][1]), (KeyLockPos[0][0],KeyLockPos[0][1]), color = (0, 255, 0), thickness = 3)
+        # cv2.imshow("all id", new_img)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+        
+        # Deprojection : Image frame -> Camera frame (camera_color_optical_frame)
+
+        print(RedBlueButPos[0][0])
+        print(RedBlueButPos[0][1])
+        print(KeyLockPos[0][0])
+        print(KeyLockPos[0][1])
+        
+        # deprojection_red_button = realsense.deproject(RedBlueButPos[0][0],RedBlueButPos[0][1],depth)
+        
+        # deprojection_key_lock = realsense.deproject(KeyLockPos[0][0],KeyLockPos[0][1],depth)
+        
+        # print(deprojection_red_button)
+        # print(deprojection_key_lock)
+        initial_depth = 550 # mm
+        real_distance = 150 # mm
+        tollerance = 0.2      #mm
+
+        depth = 589
+        deprojection_red_button = np.array(realsense.deproject(RedBlueButPos[0][0],RedBlueButPos[0][1],depth))
+        deprojection_key_lock = np.array(realsense.deproject(KeyLockPos[0][0],KeyLockPos[0][1],depth))
+
+
+        import tf2_ros
+        import tf
+        import geometry_msgs.msg
+
+        broadcaster = tf2_ros.StaticTransformBroadcaster()
+        static_transformStamped = geometry_msgs.msg.TransformStamped()
+        static_transformStamped.header.stamp = rospy.Time.now()
+        static_transformStamped.header.frame_id = "camera_color_optical_frame"
+        static_transformStamped.child_frame_id = "board"
+        
+        static_transformStamped.transform.translation.x = deprojection_red_button[0]
+        static_transformStamped.transform.translation.y = deprojection_red_button[1]
+        static_transformStamped.transform.translation.z = 589
+        quat = tf.transformations.quaternion_from_euler(0.0,0.0,0.0)
+        static_transformStamped.transform.rotation.x = quat[0]
+        static_transformStamped.transform.rotation.y = quat[1]
+        static_transformStamped.transform.rotation.z = quat[2]
+        static_transformStamped.transform.rotation.w = quat[3]
+
+        broadcaster.sendTransform(static_transformStamped)
+        rospy.spin()
+        # computed_distance = np.inf
+        # depth = initial_depth
+        # while np.abs(computed_distance - real_distance) > tollerance:
+        #     print(depth)
+        #     deprojection_red_button = np.array(realsense.deproject(RedBlueButPos[0][0],RedBlueButPos[0][1],depth))
+            
+        #     deprojection_key_lock = np.array(realsense.deproject(KeyLockPos[0][0],KeyLockPos[0][1],depth))
+        #     computed_distance = np.linalg.norm(deprojection_red_button[:2]- deprojection_key_lock[:2])
+        #     print("computed distance")
+        #     print(computed_distance)
+        #     depth += 1
+        #     # print("deprojection")
+        #     # print(deprojection_red_button)
+        
+        # print(depth)
+        # print(computed_distance)
+                    
+        #return 0
+        continue
+        ################
+        rospy.loginfo(GREEN + "Key lock pos" + END)
+        print(KeyLockPos)
+        #contours_limited.pop(id_circle)
         new_img = getRoi(img,144,669,360,1150)
         
-        ButtonCellPos , id_button_cell = getButtonCell(l_col, contours_limited,crop_img,ScreenPos,KeyLockPos,new_img)
-        contours_limited.pop(id_button_cell)
+        button_cell_identified = False
+        try:
+            ButtonCellPos , id_button_cell = getButtonCell(l_col, contours_limited,crop_img,ScreenPos,KeyLockPos,new_img)
+            button_cell_identified = True
+        except Exception:
+            print("NO BUTTON CELL IDENTIFIED")    
+        
+        new_img = getRoi(img,144,669,360,1150)
+        print(ScreenPos)
+        new_img = cv2.circle(new_img, (ScreenPos[0][0],ScreenPos[0][1]), 5, color = (255, 0, 0), thickness = 2)
+        new_img = cv2.circle(new_img, (RedBlueButPos[0][0],RedBlueButPos[0][1]), 5, color = (255, 0, 0), thickness = 2)
+        new_img = cv2.circle(new_img, (KeyLockPos[0][0],KeyLockPos[0][1]), 5, color = (255, 0, 0), thickness = 2)
+        if button_cell_identified:
+            new_img = cv2.circle(new_img, (ButtonCellPos[0][0],ButtonCellPos[0][1]), 5, color = (255, 0, 0), thickness = 2)
+            
+        # Displaying the image
+        cv2.imshow("Identificazione completata", new_img)
+        #contours_limited.pop(id_button_cell)
         
         ################# APPROX BOARD ##################
         # new_img = new_img = getRoi(img,y,y+h,x,x+w)
