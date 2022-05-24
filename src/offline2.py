@@ -603,14 +603,15 @@ def main():
     #     return 0
 
     images_folder_path = "/home/teamcari/projects/robothon2022_ws/src/robothon2022_vision/file"
+    images_folder_path = "/home/samuele/projects/robothon_2022_ws/src/robothon2022_vision/file"
     realsense=RealSense()
     realsense.getCameraParam()  #For subscribe camera info usefull for Deprojection
     realsense.waitCameraInfo()
-    # if True:
-    #     single_image_name = "/frame_16.png"
-    for single_image_name in os.listdir(images_folder_path):
-        img = cv2.imread(os.path.join(images_folder_path,single_image_name))
-        # img = cv2.imread(images_folder_path+single_image_name)
+    if True:
+        single_image_name = "/frame_2.png"
+    # for single_image_name in os.listdir(images_folder_path):
+    #     img = cv2.imread(os.path.join(images_folder_path,single_image_name))
+        img = cv2.imread(images_folder_path+single_image_name)
         #
 
         crop_img      = img[144:669, 360:1150]
@@ -741,14 +742,22 @@ def main():
         z_axis = np.cross(x_axis,y_axis_norm)
 
         matR_camera_board=np.array([x_axis,y_axis_norm,z_axis]).T
-
+        print(matR_camera_board)
         T = tf.transformations.identity_matrix()
         T[0:-1,0:-1]=matR_camera_board
         print(T)
+        
+        matrix_position = tf.transformations.identity_matrix()
+        matrix_position[0,-1]=deprojection_red_button[0]/1000.0
+        matrix_position[1,-1]=deprojection_red_button[1]/1000.0
+        matrix_position[2,-1]=589/1000.0
+        
+        print(matrix_position)
+        mat_camera_board = np.dot(matrix_position,T)
+        
+        print(mat_camera_board)
 
-        print(matR_camera_board)
-
-        rotation_quat = tf.transformations.quaternion_from_matrix(T)
+        rotation_quat = tf.transformations.quaternion_from_matrix(mat_camera_board)
 
         # Estimation depth
         # computed_distance = np.inf
@@ -775,9 +784,9 @@ def main():
         static_transformStamped.header.frame_id = "camera_color_optical_frame"
         static_transformStamped.child_frame_id = "board"
 
-        static_transformStamped.transform.translation.x = deprojection_red_button[0]/1000.0
-        static_transformStamped.transform.translation.y = deprojection_red_button[1]/1000.0
-        static_transformStamped.transform.translation.z = 589/1000.0
+        static_transformStamped.transform.translation.x = mat_camera_board[0,-1]
+        static_transformStamped.transform.translation.y = mat_camera_board[1,-1]
+        static_transformStamped.transform.translation.z = mat_camera_board[2,-1]
         # quat = tf.transformations.quaternion_from_euler(0.0,0.0,0.0)
         static_transformStamped.transform.rotation.x = rotation_quat[0]
         static_transformStamped.transform.rotation.y = rotation_quat[1]
@@ -789,8 +798,8 @@ def main():
 
         cv2.waitKey(0)
         cv2.destroyAllWindows()
-        #return 0
-        continue
+        return 0
+        # continue
         ################
         rospy.loginfo(GREEN + "Key lock pos" + END)
         print(KeyLockPos)
