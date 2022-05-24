@@ -117,9 +117,16 @@ class RealSense():
         """
         rospy.loginfo("Waiting frame ...")
         frameRgb = rospy.wait_for_message(COLOR_FRAME_TOPIC, Image, timeout=None)
-        colorFrame = self.bridge.imgmsg_to_cv2(frameRgb, desired_encoding="passthrough")
+        rospy.sleep(2.0)
+        frameRgb = rospy.wait_for_message(COLOR_FRAME_TOPIC, Image, timeout=None)
+        
+        colorFrame = self.bridge.imgmsg_to_cv2(frameRgb, desired_encoding="bgr8")
         self.colorFrame = colorFrame.copy()
         rospy.loginfo("Frame recived...")
+    def getColorFrame(self):
+        """Method for return frame acquired
+        """
+        return self.colorFrame
     
     def saveImage(self, folder_path):
         """Method for saving only one frame to  desired location
@@ -129,7 +136,7 @@ class RealSense():
         """
         
         self.acquireOnce()
-        cv2.imwrite(folder_path + "frame_" +str(self.frame_number) + ".png",cv2.cvtColor(self.colorFrame, cv2.COLOR_RGB2BGR))
+        cv2.imwrite(folder_path + "frame_" +str(self.frame_number) + ".png",self.colorFrame)#,cv2.cvtColor(self.colorFrame, cv2.COLOR_RGB2BGR))
         # cv2.imwrite(folder_path + "frame_" +str(self.frame_number) + ".png", self.colorFrame)
         self.frame_number += 1
     

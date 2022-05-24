@@ -199,6 +199,12 @@ def getRedBlueButtons(value_in_gray,b_col_in,contours_in,new_img,ScreenPos):
 
 
     return center_coordinate, butt_idx
+
+
+
+
+
+
     # rospy.loginfo(RED + "Red blue button identification" + END)
     # passed_imgs = 0
     # butt_idx    = 0
@@ -608,46 +614,46 @@ def main():
     realsense.getCameraParam()  #For subscribe camera info usefull for Deprojection
     realsense.waitCameraInfo()
     if True:
-        single_image_name = "/frame_2.png"
+        single_image_name = "/frame_1.png"
     # for single_image_name in os.listdir(images_folder_path):
     #     img = cv2.imread(os.path.join(images_folder_path,single_image_name))
         img = cv2.imread(images_folder_path+single_image_name)
         #
 
-        crop_img      = img[144:669, 360:1150]
-        crop_img_copy = img[144:669, 360:1150].copy()
-        # from matplotlib import pyplot as plt
-        # import numpy as np
-        # plt.hist(crop_img_copy.ravel(),256,[0,256]);
-        # plt.show()
-        print(img.shape)
-        # cv2.imshow("img croppata",crop_img)
-        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        lab = cv2.cvtColor(img, cv2.COLOR_BGR2Lab)
-        bw  = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        # crop_img      = img[144:669, 360:1150]
+        # crop_img_copy = img[144:669, 360:1150].copy()
+        # # from matplotlib import pyplot as plt
+        # # import numpy as np
+        # # plt.hist(crop_img_copy.ravel(),256,[0,256]);
+        # # plt.show()
+        # print(img.shape)
+        # # cv2.imshow("img croppata",crop_img)
+        # hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        # lab = cv2.cvtColor(img, cv2.COLOR_BGR2Lab)
+        # bw  = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        hue,saturation,value = cv2.split(hsv)
-        l_col,a_col,b_col    = cv2.split(lab)
+        # hue,saturation,value = cv2.split(hsv)
+        # l_col,a_col,b_col    = cv2.split(lab)
 
-        cv2.imshow("hue", hue)
-        cv2.imshow("sat", saturation)
-        cv2.imshow("value", value)
-        cv2.imshow("l_col", l_col)
-        cv2.imshow("a_col", a_col)
-        cv2.imshow("b_col", b_col)
+        # cv2.imshow("hue", hue)
+        # cv2.imshow("sat", saturation)
+        # cv2.imshow("value", value)
+        # cv2.imshow("l_col", l_col)
+        # cv2.imshow("a_col", a_col)
+        # cv2.imshow("b_col", b_col)
 
-        # Threshold and contours
-        ret,value_th = cv2.threshold(value,100,255,0)
-        cv2.imshow('VALUE TH', value_th)
+        # # Threshold and contours
+        # ret,value_th = cv2.threshold(value,100,255,0)
+        # cv2.imshow('VALUE TH', value_th)
 
-        board_cnt, contours_limited, contours = getBoardContour(value_th)
+        # board_cnt, contours_limited, contours = getBoardContour(value_th)
 
 
-        print("board contour")
-        #print(board_cnt)
+        # print("board contour")
+        # #print(board_cnt)
 
-        x,y,w,h = cv2.boundingRect(board_cnt)
-        ROI_board = value[y:y+h, x:x+w]
+        # x,y,w,h = cv2.boundingRect(board_cnt)
+        # ROI_board = value[y:y+h, x:x+w]
 
         ################# MACRO ROI ##################
         new_img = getRoi(img,144,669,360,1150)
@@ -691,7 +697,7 @@ def main():
         RedBlueButPos, id_red_blue_contour  = getRedBlueButtons(saturation,b_col,contours_limited,new_img, ScreenPos)
         new_img = cv2.circle(new_img, (ScreenPos[0][0],ScreenPos[0][1]), 5, color = (255, 0, 0), thickness = 2)
         new_img = cv2.circle(new_img, (RedBlueButPos[0][0],RedBlueButPos[0][1]), 5, color = (255, 0, 0), thickness = 2)
-
+        cv2.imshow("all id", new_img)
         from math import cos, sin, pi
         starting_point = (RedBlueButPos[0][0],RedBlueButPos[0][1])
 
@@ -704,12 +710,12 @@ def main():
 
         new_img = getRoi(img,144,669,360,1150)
         contours_limited.pop(id_red_blue_contour)
-        KeyLockPos , id_circle    = getKeyLock(l_col,contours_limited,crop_img,ScreenPos,new_img)
+        KeyLockPos , id_circle    = getKeyLock(l_col,contours_limited,new_img,ScreenPos,new_img)
 
         #cv2.line(new_img, (RedBlueButPos[0][0],RedBlueButPos[0][1]), (KeyLockPos[0][0],KeyLockPos[0][1]), color = (0, 255, 0), thickness = 3)
-        # cv2.imshow("all id", new_img)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
+        
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
         # Deprojection : Image frame -> Camera frame (camera_color_optical_frame)
 
@@ -729,6 +735,7 @@ def main():
         tollerance = 0.2    # mm
 
         depth = 589         #Estimated
+        
         deprojection_red_button = np.array(realsense.deproject(RedBlueButPos[0][0],RedBlueButPos[0][1],depth))
         deprojection_key_lock = np.array(realsense.deproject(KeyLockPos[0][0],KeyLockPos[0][1],depth))
         deprojection_screen = np.array(realsense.deproject(ScreenPos[0][0],ScreenPos[0][1],depth))
@@ -778,26 +785,26 @@ def main():
         # print(computed_distance)
 
 
-        broadcaster = tf2_ros.StaticTransformBroadcaster()
-        static_transformStamped = geometry_msgs.msg.TransformStamped()
-        static_transformStamped.header.stamp = rospy.Time.now()
-        static_transformStamped.header.frame_id = "camera_color_optical_frame"
-        static_transformStamped.child_frame_id = "board"
+        # broadcaster = tf2_ros.StaticTransformBroadcaster()
+        # static_transformStamped = geometry_msgs.msg.TransformStamped()
+        # static_transformStamped.header.stamp = rospy.Time.now()
+        # static_transformStamped.header.frame_id = "camera_color_optical_frame"
+        # static_transformStamped.child_frame_id = "board"
 
-        static_transformStamped.transform.translation.x = mat_camera_board[0,-1]
-        static_transformStamped.transform.translation.y = mat_camera_board[1,-1]
-        static_transformStamped.transform.translation.z = mat_camera_board[2,-1]
-        # quat = tf.transformations.quaternion_from_euler(0.0,0.0,0.0)
-        static_transformStamped.transform.rotation.x = rotation_quat[0]
-        static_transformStamped.transform.rotation.y = rotation_quat[1]
-        static_transformStamped.transform.rotation.z = rotation_quat[2]
-        static_transformStamped.transform.rotation.w = rotation_quat[3]
+        # static_transformStamped.transform.translation.x = mat_camera_board[0,-1]
+        # static_transformStamped.transform.translation.y = mat_camera_board[1,-1]
+        # static_transformStamped.transform.translation.z = mat_camera_board[2,-1]
+        # # quat = tf.transformations.quaternion_from_euler(0.0,0.0,0.0)
+        # static_transformStamped.transform.rotation.x = rotation_quat[0]
+        # static_transformStamped.transform.rotation.y = rotation_quat[1]
+        # static_transformStamped.transform.rotation.z = rotation_quat[2]
+        # static_transformStamped.transform.rotation.w = rotation_quat[3]
 
-        broadcaster.sendTransform(static_transformStamped)
-        rospy.spin()
+        # broadcaster.sendTransform(static_transformStamped)
+        # rospy.spin()
 
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
         return 0
         # continue
         ################
