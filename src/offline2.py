@@ -8,6 +8,10 @@ import numpy as np
 from sklearn.cluster import KMeans
 from math import cos,sin
 from RealSense import RealSense
+import tf2_ros
+import tf
+import geometry_msgs.msg
+        
 GREEN = '\033[92m'
 YELLOW = '\033[93m'
 RED = '\033[91m'
@@ -654,6 +658,8 @@ def main():
         ret,value_th = cv2.threshold(value,90,255,0)
 
         board_cnt, contours_limited, contours = getBoardContour(value_th)
+        
+        #Estimate board angle (test)
         (x,y),(MA,ma),angle = cv2.fitEllipse(board_cnt)
         rospy.loginfo(RED + "Board angle" + END)
         print(angle)
@@ -719,34 +725,27 @@ def main():
         # print(deprojection_key_lock)
         initial_depth = 550 # mm
         real_distance = 150 # mm
-        tollerance = 0.2      #mm
+        tollerance = 0.2    # mm
 
-        depth = 589
+        depth = 589         #Estimated
         deprojection_red_button = np.array(realsense.deproject(RedBlueButPos[0][0],RedBlueButPos[0][1],depth))
         deprojection_key_lock = np.array(realsense.deproject(KeyLockPos[0][0],KeyLockPos[0][1],depth))
-
-
-        import tf2_ros
-        import tf
-        import geometry_msgs.msg
-
-        broadcaster = tf2_ros.StaticTransformBroadcaster()
-        static_transformStamped = geometry_msgs.msg.TransformStamped()
-        static_transformStamped.header.stamp = rospy.Time.now()
-        static_transformStamped.header.frame_id = "camera_color_optical_frame"
-        static_transformStamped.child_frame_id = "board"
+        deprojection_screen = np.array(realsense.deproject(ScreenPos[0][0],ScreenPos[0][1],depth))
         
-        static_transformStamped.transform.translation.x = deprojection_red_button[0]
-        static_transformStamped.transform.translation.y = deprojection_red_button[1]
-        static_transformStamped.transform.translation.z = 589
-        quat = tf.transformations.quaternion_from_euler(0.0,0.0,0.0)
-        static_transformStamped.transform.rotation.x = quat[0]
-        static_transformStamped.transform.rotation.y = quat[1]
-        static_transformStamped.transform.rotation.z = quat[2]
-        static_transformStamped.transform.rotation.w = quat[3]
-
-        broadcaster.sendTransform(static_transformStamped)
-        rospy.spin()
+        x_axis = ( deprojection_key_lock - deprojection_red_button ) / np.linalg.norm( deprojection_key_lock - deprojection_red_button )
+        
+        y_axis_first_approach = ( deprojection_screen - deprojection_red_button )
+        y_axis_norm = y_axis_first_approach - np.dot(y_axis_first_approach,x_axis)/(np.dot(x_axis,x_axis))*x_axis
+        y_axis_norm = y_axis_norm / np.linalg.norm(y_axis_norm)
+        
+        z_axis = np.cross(x_axis,y_axis_norm)
+        
+        matR_camera_board=np.array([x_axis,y_axis_norm,z_axis]).T
+        
+        rotation_quat = tf.transformations.quaternion_from_matrix(matR_camera_board)
+        
+        
+        # Estimation depth
         # computed_distance = np.inf
         # depth = initial_depth
         # while np.abs(computed_distance - real_distance) > tollerance:
@@ -763,7 +762,28 @@ def main():
         
         # print(depth)
         # print(computed_distance)
-                    
+
+
+        broadcaster = tf2_ros.StaticTransformBroadcaster()
+        static_transformStamped = geometry_msgs.msg.TransformStamped()
+        static_transformStamped.header.stamp = rospy.Time.now()
+        static_transformStamped.header.frame_id = "camera_color_optical_frame"
+        static_transformStamped.child_frame_id = "board"
+        
+        static_transformStamped.transform.translation.x = deprojection_red_button[0]/1000.0
+        static_transformStamped.transform.translation.y = deprojection_red_button[1]/1000.0
+        static_transformStamped.transform.translation.z = 589/1000.0
+        # quat = tf.transformations.quaternion_from_euler(0.0,0.0,0.0)
+        static_transformStamped.transform.rotation.x = rotation_quat[0]
+        static_transformStamped.transform.rotation.y = rotation_quat[1]
+        static_transformStamped.transform.rotation.z = rotation_quat[2]
+        static_transformStamped.transform.rotation.w = rotation_quat[3]
+
+        broadcaster.sendTransform(static_transformStamped)
+        rospy.spin()
+        
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
         #return 0
         continue
         ################
