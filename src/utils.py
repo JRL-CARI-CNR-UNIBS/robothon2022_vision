@@ -216,7 +216,7 @@ def getRedBlueButtons(value_in_gray,b_col_in,contours_in,new_img,ScreenPos):
 def getKeyLock(lab_l_in,contours_in,orig,ScreenPos,new_img):
     rospy.loginfo(RED + "Get key lock identification" + END)
     import traceback
-    
+
     print("N contorni: {}".format(len(contours_in)))
     distance_from_screen_acceptable = False
 
@@ -315,13 +315,13 @@ def getKeyLock(lab_l_in,contours_in,orig,ScreenPos,new_img):
         print("Screen pos: {}".format(ScreenPos))
         print(np.linalg.norm(circle_pos[0][:2]-ScreenPos))
         distance_from_screen = np.linalg.norm(circle_pos[0][:2]-ScreenPos)
-        
+
         print("Distanza da screen: {}".format(distance_from_screen))
         if distance_from_screen < 80:
             distance_from_screen_acceptable = True
         if contours_in:
             contours_in.pop(id_circle)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
 
     return(np.array([circles[0,0] + shift]),id_circle)

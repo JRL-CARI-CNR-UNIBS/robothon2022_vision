@@ -30,30 +30,30 @@ NOT_SUCCESSFUL = "Not Successfully executed"
 SERVICE_NAME = "/robothon2022/board_localization"
 
 class BoardLocalization:
-    
+
     def __init__(self):
-        
-        
+
+
         self.realsense=RealSense()
-        
+
         # Retrieve camera parameters
         rospy.loginfo(YELLOW + "Waiting camera parameters" + END)
-        self.realsense.getCameraParam()  
+        self.realsense.getCameraParam()
         self.realsense.waitCameraInfo()
         rospy.loginfo(GREEN + "Camera parameters retrived correctly" + END)
-        
+
         #Estimated parameters
         self.depth = 589    # Estimated distance
-        
+
         rospy.loginfo(GREEN + "Service alive ...." + END)
-        
+
     def callback(self,request):
 
         rospy.loginfo(SERVICE_CALLBACK.format(SERVICE_NAME))
-        
+
         #Acquire the rgb-frame
         self.realsense.acquireOnce()
-        
+
         rospy.loginfo(RED + "INIZIO A IDENTIFICARE" + END)
         rgb_frame = self.realsense.getColorFrame()
         cv2.imshow("frame acq", rgb_frame)
@@ -63,22 +63,22 @@ class BoardLocalization:
         crop_img = getRoi(rgb_frame,144,669,360,1150)
         hsv, lab, bw = getAllColorSpaces(crop_img)
         #############################################
-        
+
         hue,saturation,value = cv2.split(hsv)
         l_col,a_col,b_col    = cv2.split(lab)
-        
+
         ret,value_th = cv2.threshold(value,90,255,0)
 
         ################ Board contour ##############
         board_cnt, contours_limited, contours = getBoardContour(value_th)
         #############################################
-        
+
         ################ Identify screen ############
-        
+
         ScreenPos, idx_screen = getScreen(a_col,contours_limited)
-        
+
         contours_limited.pop(idx_screen)     #Remove screen contour from list
-        
+
         rospy.loginfo(GREEN + "Screen position: {}".format(ScreenPos) + END)
         new_img = getRoi(rgb_frame,144,669,360,1150)
         new_img = cv2.circle(crop_img, (ScreenPos[0][0],ScreenPos[0][1]), 5, color = (255, 0, 0), thickness = 2)
@@ -88,28 +88,33 @@ class BoardLocalization:
         cv2.imshow("Identificato",new_img)
         cv2.imshow("TH",value_th)
         cv2.waitKey(0)
-        cv2.destroyAllWindows()      
-        
+        cv2.destroyAllWindows()
+
         #crop_img = getRoi(rgb_frame,144,669,360,1150)
-        
+
         #new_img = cv2.circle(crop_img, (ScreenPos[0][0],ScreenPos[0][1]), 5, color = (255, 0, 0), thickness = 2)
         #new_img = cv2.circle(crop_img, (RedBlueButPos[0][0],RedBlueButPos[0][1]), 5, color = (255, 0, 0), thickness = 2)
 
         ##############################################
-        
-        
-        ################## Identify red button #######
-        RedBlueButPos, id_red_blue_contour  = getRedBlueButtons(saturation,b_col,contours_limited,crop_img, ScreenPos)
-        contours_limited.pop(id_red_blue_contour)
-        
-        crop_img = getRoi(rgb_frame,144,669,360,1150)
-        
 
-        
+
+        ################## Identify red button #######
+        rospy.loginfo(GREEN +"Identifying red button..."+ END)
+        RedBlueButPos, id_red_blue_contour  = getRedBlueButtons(saturation,b_col,contours_limited,crop_img, ScreenPos)
+        rospy.loginfo(GREEN +"Identified red button"+ END)
+
+        contours_limited.pop(id_red_blue_contour)
+
+        crop_img = getRoi(rgb_frame,144,669,360,1150)
+
+
+
         #############<##### Identify key lock   #######
+        rospy.loginfo(GREEN +"Identifying KeyLock..."+ END)
         KeyLockPos , id_circle    = getKeyLock(l_col,contours_limited,crop_img,ScreenPos,crop_img)
+        rospy.loginfo(GREEN +"Identified red button"+ END)
+
         ##############################################
-            
             
         # Crop image (in order to get the interested area)
         new_img = getRoi(rgb_frame,144,669,360,1150)
@@ -119,9 +124,9 @@ class BoardLocalization:
 
         cv2.imshow("Identificato",new_img)
         cv2.waitKey(0)
-        cv2.destroyAllWindows()      
-        
-        
+        cv2.destroyAllWindows()
+
+
         ############### Computing board tf ##################
         rospy.loginfo(GREEN + "Computing tf" + END)
         deprojection_red_button = np.array(self.realsense.deproject(RedBlueButPos[0][0],RedBlueButPos[0][1],self.depth))
@@ -134,20 +139,20 @@ class BoardLocalization:
         y_axis_norm = y_axis_first_approach - np.dot(y_axis_first_approach,x_axis)/(np.dot(x_axis,x_axis))*x_axis
         y_axis_norm = y_axis_norm / np.linalg.norm(y_axis_norm)
 
-        z_axis = np.cross(x_axis,y_axis_norm)       
-        
-        
+        z_axis = np.cross(x_axis,y_axis_norm)
+
+
         rot_mat_camera_board = np.array([x_axis,y_axis_norm,z_axis]).T
         M_camera_board_only_rot = tf.transformations.identity_matrix()
         M_camera_board_only_rot[0:-1,0:-1]=rot_mat_camera_board
-        
+
         M_camera_board_only_tra = tf.transformations.identity_matrix()
         M_camera_board_only_tra[0:3,-1]=np.array([deprojection_red_button[0]/1000.0,deprojection_red_button[1]/1000.0,589.0/1000.0])
-        
+
         M_camera_board = np.dot(M_camera_board_only_tra,M_camera_board_only_rot)
-        
+
         rotation_quat = tf.transformations.quaternion_from_matrix(M_camera_board)
-        
+
         ################## Broadcast board tf ############
         rospy.loginfo(GREEN + "Publishing tf" + END)
         broadcaster = tf2_ros.StaticTransformBroadcaster()
@@ -164,15 +169,15 @@ class BoardLocalization:
         static_transformStamped.transform.rotation.z = rotation_quat[2]
         static_transformStamped.transform.rotation.w = rotation_quat[3]
 
-        broadcaster.sendTransform(static_transformStamped)        
-        
+        broadcaster.sendTransform(static_transformStamped)
+
         rospy.loginfo(GREEN + "Published tf" + END)
-  
-        
+
+
         # try:
         return SetBoolResponse(True,SUCCESSFUL)
         # except :
-        #     return SetBoolResponse(False,NOT_SUCCESSFUL)    
+        #     return SetBoolResponse(False,NOT_SUCCESSFUL)
 
 
 
@@ -181,15 +186,15 @@ def main():
 
     rospy.init_node("board_localization")
 
-    # Retrieve nedded rosparam     
+    # Retrieve nedded rosparam
     # try:
-    #     param_name=rospy.get_param("~rosparam_name")   
-    # except KeyError:   
+    #     param_name=rospy.get_param("~rosparam_name")
+    # except KeyError:
     #     rospy.logerr(RED + PARAM_NOT_DEFINED_ERROR.format("mongo_database") + END)
     #     return 0
     board_localization = BoardLocalization()
     # Rosservice
-    
+
     rospy.Service(SERVICE_NAME,SetBool,board_localization.callback)
     # print("dentro")
     # try:
@@ -197,10 +202,10 @@ def main():
     #     board_localization = BoardLocalization()
     # except:
     #     print("eccez")
-    #     return 0     #Connection to db failed 
-    
-       
-    
+    #     return 0     #Connection to db failed
+
+
+
     rospy.spin()
 
 if __name__ == "__main__":
