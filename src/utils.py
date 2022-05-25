@@ -207,6 +207,7 @@ def getRedBlueButtons(value_in_gray,b_col_in,contours_in,new_img,ScreenPos):
                 contours_in.pop(butt_idx)
             else:
                 rospy.loginfo("No buttons found")
+                raise Exception("No buttons found in all macro contour ")
                 break
 
 
@@ -218,6 +219,8 @@ def getKeyLock(lab_l_in,contours_in,orig,ScreenPos,new_img):
     import traceback
 
     print("N contorni: {}".format(len(contours_in)))
+    if len(contours_in) == 0:
+        raise Exception("No contour in present")
     distance_from_screen_acceptable = False
 
     cv2.drawContours(new_img,contours_in,-1, (0, 255, 0), 3)
@@ -232,6 +235,7 @@ def getKeyLock(lab_l_in,contours_in,orig,ScreenPos,new_img):
             ecc_list.append(ecc)
             # print(area,peri,ecc)
         print(ecc_list)
+
         id_circle = ecc_list.index(max(ecc_list))
 
         #### DEBUG
@@ -321,6 +325,8 @@ def getKeyLock(lab_l_in,contours_in,orig,ScreenPos,new_img):
             distance_from_screen_acceptable = True
         if contours_in:
             contours_in.pop(id_circle)
+        else:
+            raise Exception("Contour finished without found lock with acceptable distance")
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
 

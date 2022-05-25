@@ -167,6 +167,18 @@ class BoardLocalization:
         key_lock_world = np.dot(M_world_camera, self.get4Vector(key_lock_camera))
         screen_world = np.dot(M_world_camera, self.get4Vector(screen_camera))
 
+
+        red_button_world = red_button_world[0:-1]
+        red_button_world[-1] = 0.1
+        key_lock_world = key_lock_world[0:-1]
+        key_lock_world[-1] = 0.1
+        screen_world = screen_world[0:-1]
+        screen_world[-1] = 0.1
+        
+        print(red_button_world)
+        print(key_lock_world)
+        print(screen_world)
+
         self.pubTF(red_button_world,"red_dopo","base_link")
         self.pubTF(key_lock_world,"key","base_link")
         self.pubTF(screen_world,"screen","base_link")
@@ -175,6 +187,50 @@ class BoardLocalization:
         # red_button_camera = np.array(self.realsense.deproject(RedBlueButPos[0][0],RedBlueButPos[0][1],self.depth))
         # key_lock_camera = np.array(self.realsense.deproject(KeyLockPos[0][0],KeyLockPos[0][1],self.depth))
         # screen_camera = np.array(self.realsense.deproject(ScreenPos[0][0],ScreenPos[0][1],self.depth))
+
+        x_axis = ( key_lock_world - red_button_world ) / np.linalg.norm( key_lock_world - red_button_world )
+        print(x_axis)
+        y_axis_first_approach = ( screen_world - red_button_world )
+        y_axis_norm = y_axis_first_approach - np.dot(y_axis_first_approach,x_axis)/(np.dot(x_axis,x_axis))*x_axis
+        y_axis_norm = y_axis_norm / np.linalg.norm(y_axis_norm)
+        print(y_axis_norm)
+
+        z_axis = np.cross(x_axis,y_axis_norm)       
+        print(z_axis)
+        
+        rot_mat_camera_board = np.array([x_axis,y_axis_norm,z_axis]).T
+        M_camera_board_only_rot = tf.transformations.identity_matrix()
+        M_camera_board_only_rot[0:-1,0:-1]=rot_mat_camera_board
+        
+        M_camera_board_only_tra = tf.transformations.identity_matrix()
+        M_camera_board_only_tra[0:3,-1]=np.array([red_button_world[0],red_button_world[1],red_button_world[2]])
+        
+        M_camera_board = np.dot(M_camera_board_only_tra,M_camera_board_only_rot)
+        
+        rotation_quat = tf.transformations.quaternion_from_matrix(M_camera_board)
+
+
+        ################## Broadcast board tf ############
+        rospy.loginfo(GREEN + "Publishing tf" + END)
+        broadcaster = tf2_ros.StaticTransformBroadcaster()
+        static_transformStamped = geometry_msgs.msg.TransformStamped()
+        static_transformStamped.header.stamp = rospy.Time.now()
+        static_transformStamped.header.frame_id = "base_link"
+        static_transformStamped.child_frame_id = "board"
+
+        static_transformStamped.transform.translation.x = M_camera_board[0,-1]
+        static_transformStamped.transform.translation.y = M_camera_board[1,-1]
+        static_transformStamped.transform.translation.z = M_camera_board[2,-1]
+        static_transformStamped.transform.rotation.x = rotation_quat[0]
+        static_transformStamped.transform.rotation.y = rotation_quat[1]
+        static_transformStamped.transform.rotation.z = rotation_quat[2]
+        static_transformStamped.transform.rotation.w = rotation_quat[3]
+
+        broadcaster.sendTransform(static_transformStamped)
+
+
+
+        ######################## anche con altro
 
         x_axis = ( key_lock_camera - red_button_camera ) / np.linalg.norm( key_lock_camera - red_button_camera )
 
@@ -198,22 +254,22 @@ class BoardLocalization:
 
 
         ################## Broadcast board tf ############
-        rospy.loginfo(GREEN + "Publishing tf" + END)
-        broadcaster = tf2_ros.StaticTransformBroadcaster()
-        static_transformStamped = geometry_msgs.msg.TransformStamped()
-        static_transformStamped.header.stamp = rospy.Time.now()
-        static_transformStamped.header.frame_id = "camera_color_optical_frame"
-        static_transformStamped.child_frame_id = "board"
+        # rospy.loginfo(GREEN + "Publishing tf" + END)
+        # broadcaster = tf2_ros.StaticTransformBroadcaster()
+        # static_transformStamped = geometry_msgs.msg.TransformStamped()
+        # static_transformStamped.header.stamp = rospy.Time.now()
+        # static_transformStamped.header.frame_id = "camera_color_optical_frame"
+        # static_transformStamped.child_frame_id = "board_respect_camera"
 
-        static_transformStamped.transform.translation.x = M_camera_board[0,-1]
-        static_transformStamped.transform.translation.y = M_camera_board[1,-1]
-        static_transformStamped.transform.translation.z = M_camera_board[2,-1]
-        static_transformStamped.transform.rotation.x = rotation_quat[0]
-        static_transformStamped.transform.rotation.y = rotation_quat[1]
-        static_transformStamped.transform.rotation.z = rotation_quat[2]
-        static_transformStamped.transform.rotation.w = rotation_quat[3]
+        # static_transformStamped.transform.translation.x = M_camera_board[0,-1]
+        # static_transformStamped.transform.translation.y = M_camera_board[1,-1]
+        # static_transformStamped.transform.translation.z = M_camera_board[2,-1]
+        # static_transformStamped.transform.rotation.x = rotation_quat[0]
+        # static_transformStamped.transform.rotation.y = rotation_quat[1]
+        # static_transformStamped.transform.rotation.z = rotation_quat[2]
+        # static_transformStamped.transform.rotation.w = rotation_quat[3]
 
-        broadcaster.sendTransform(static_transformStamped)
+        # broadcaster.sendTransform(static_transformStamped)
 
         rospy.loginfo(GREEN + "Published tf" + END)
 
