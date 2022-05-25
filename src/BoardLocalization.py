@@ -129,9 +129,10 @@ class BoardLocalization:
 
         ############### Computing board tf ##################
         rospy.loginfo(GREEN + "Computing tf" + END)
-        deprojection_red_button = np.array(self.realsense.deproject(RedBlueButPos[0][0],RedBlueButPos[0][1],self.depth))
-        deprojection_key_lock = np.array(self.realsense.deproject(KeyLockPos[0][0],KeyLockPos[0][1],self.depth))
-        deprojection_screen = np.array(self.realsense.deproject(ScreenPos[0][0],ScreenPos[0][1],self.depth))
+
+        red_button_camera = np.array(self.realsense.deproject(RedBlueButPos[0][0],RedBlueButPos[0][1],self.depth))/1000.0
+        key_lock_camera = np.array(self.realsense.deproject(KeyLockPos[0][0],KeyLockPos[0][1],self.depth))/1000.0
+        screen_camera = np.array(self.realsense.deproject(ScreenPos[0][0],ScreenPos[0][1],self.depth))/1000.0
 
         listener = tf.TransformListener()
         rospy.sleep(1.0)
@@ -139,91 +140,62 @@ class BoardLocalization:
         while not found:
             print("prova")
             try:
-                (trans,rot) = listener.lookupTransform('camera_color_optical_frame', 'base_link', rospy.Time(0))
+                (trans,rot) = listener.lookupTransform('base_link', 'camera_color_optical_frame', rospy.Time(0))
                 found = True
                 print("Trovata")
             except (tf.LookupException, tf.ConnectivityException):
                 print("non ce un cazzoo")
                 rospy.sleep(0.5)
 
-        trans_board_world = tf.transformations.translation_matrix(trans)
-        rot_board_world = tf.transformations.quaternion_matrix(rot)
-        print(trans_board_world)
-        print(rot_board_world)
-        M_board_world = np.dot(trans_board_world,rot_board_world)
+        rospy.loginfo(YELLOW + "Trasformata camera_color_optical_frame -> base_link \n :{}".format(trans) + RED)
+        rospy.loginfo(YELLOW + "Trasformata camera_color_optical_frame -> base_link \n :{}".format(rot) + RED)
+        
+        trans_world_camera = tf.transformations.translation_matrix(trans)
+        rot_world_camera = tf.transformations.quaternion_matrix(rot)
+        print(trans_world_camera)
+        print(rot_world_camera)
+        M_world_camera = np.dot(trans_world_camera,rot_world_camera)
+        print(M_world_camera)
 
-        self.pubTF(deprojection_red_button,"red_prima")
-        deprojection_red_button = np.dot(M_board_world, self.get4Vector(deprojection_red_button))
-        deprojection_key_lock = np.dot(M_board_world, self.get4Vector(deprojection_key_lock))
-        deprojection_screen = np.dot(M_board_world, self.get4Vector(deprojection_screen))
 
-        self.pubTF(deprojection_red_button,"red_dopo")
-        self.pubTF(deprojection_key_lock,"key")
-        self.pubTF(deprojection_screen,"screen")
+        self.pubTF(red_button_camera,"red_prima","camera_color_optical_frame")
+        self.pubTF(key_lock_camera,"keuy_prima","camera_color_optical_frame")
+        self.pubTF(screen_camera,"screen_prima","camera_color_optical_frame")
+        print("red button respect camera")
+        print(red_button_camera)
+        red_button_world = np.dot(M_world_camera, self.get4Vector(red_button_camera))
+        key_lock_world = np.dot(M_world_camera, self.get4Vector(key_lock_camera))
+        screen_world = np.dot(M_world_camera, self.get4Vector(screen_camera))
 
-        deprojection_red_button = deprojection_red_button[:-1]
-        deprojection_key_lock =deprojection_key_lock[:-1]
-        deprojection_screen = deprojection_screen[:-1]
-        print("*********************")
-        print(deprojection_red_button)
-        print(deprojection_key_lock)
-        print(deprojection_screen)
-        print("*******************")
-        x_axis = ( deprojection_key_lock - deprojection_red_button ) / np.linalg.norm( deprojection_key_lock - deprojection_red_button )
-        print("x ax")
-        print(x_axis)
-        y_axis_first_approach = ( deprojection_screen - deprojection_red_button )
+        self.pubTF(red_button_world,"red_dopo","base_link")
+        self.pubTF(key_lock_world,"key","base_link")
+        self.pubTF(screen_world,"screen","base_link")
+
+
+        # red_button_camera = np.array(self.realsense.deproject(RedBlueButPos[0][0],RedBlueButPos[0][1],self.depth))
+        # key_lock_camera = np.array(self.realsense.deproject(KeyLockPos[0][0],KeyLockPos[0][1],self.depth))
+        # screen_camera = np.array(self.realsense.deproject(ScreenPos[0][0],ScreenPos[0][1],self.depth))
+
+        x_axis = ( key_lock_camera - red_button_camera ) / np.linalg.norm( key_lock_camera - red_button_camera )
+
+        y_axis_first_approach = ( screen_camera - red_button_camera )
         y_axis_norm = y_axis_first_approach - np.dot(y_axis_first_approach,x_axis)/(np.dot(x_axis,x_axis))*x_axis
-        print("y ax")
-        print(y_axis_norm)
         y_axis_norm = y_axis_norm / np.linalg.norm(y_axis_norm)
-        print("y ax dopo norm")
-        print(y_axis_norm)
-        z_axis = np.cross(x_axis,y_axis_norm)
-        z_axis = z_axis / np.linalg.norm(z_axis)
 
+        z_axis = np.cross(x_axis,y_axis_norm)       
+        
+        
         rot_mat_camera_board = np.array([x_axis,y_axis_norm,z_axis]).T
         M_camera_board_only_rot = tf.transformations.identity_matrix()
         M_camera_board_only_rot[0:-1,0:-1]=rot_mat_camera_board
-
+        
         M_camera_board_only_tra = tf.transformations.identity_matrix()
-        M_camera_board_only_tra[0:3,-1]=np.array([deprojection_red_button[0]/1000.0,deprojection_red_button[1]/1000.0,589.0/1000.0])
-
+        M_camera_board_only_tra[0:3,-1]=np.array([red_button_camera[0],red_button_camera[1],red_button_camera[2]])
+        
         M_camera_board = np.dot(M_camera_board_only_tra,M_camera_board_only_rot)
-
+        
         rotation_quat = tf.transformations.quaternion_from_matrix(M_camera_board)
-        # print(deprojection_red_button)
-        # auxiliary_point = deprojection_red_button.copy()
-        # print(auxiliary_point)
-        #
-        # auxiliary_point[2] = auxiliary_point[2] + 100
-        # print(deprojection_red_button)
-        # print(auxiliary_point)
-        # print("-------------------------------------------")
-        # print(deprojection_key_lock)
-        # print(deprojection_red_button)
-        # print("x_ax")
-        # x_axis = ( deprojection_key_lock - deprojection_red_button ) / np.linalg.norm( deprojection_key_lock - deprojection_red_button )
-        # print(x_axis)
-        # print(auxiliary_point - deprojection_red_button)
-        # print(np.linalg.norm( auxiliary_point - deprojection_red_button ))
-        # z_axis = ( auxiliary_point - deprojection_red_button ) / np.linalg.norm( auxiliary_point - deprojection_red_button )
-        # print(z_axis)
-        # y_axis = np.cross(z_axis,x_axis)
-        # print(y_axis)
-        # y_axis = y_axis / np.linalg.norm(y_axis)
-        # print(y_axis)
-        # rot_mat_camera_board = np.array([x_axis,y_axis,z_axis]).T
-        # M_camera_board_only_rot = tf.transformations.identity_matrix()
-        # M_camera_board_only_rot[0:-1,0:-1]=rot_mat_camera_board
-        #
-        # M_camera_board_only_tra = tf.transformations.identity_matrix()
-        # M_camera_board_only_tra[0:3,-1]=np.array([deprojection_red_button[0]/1000.0,deprojection_red_button[1]/1000.0,589.0/1000.0])
-        #
-        # M_camera_board = np.dot(M_camera_board_only_tra,M_camera_board_only_rot)
-        #
-        # print(M_camera_board)
-        # rotation_quat = tf.transformations.quaternion_from_matrix(M_camera_board)
+
 
         ################## Broadcast board tf ############
         rospy.loginfo(GREEN + "Publishing tf" + END)
@@ -256,7 +228,7 @@ class BoardLocalization:
         vet[:-1] = vect
         return vet
 
-    def pubTF(self,punto,nome):
+    def pubTF(self,punto,nome, header_frame_id):
         import tf2_ros
         from geometry_msgs.msg import Pose, Point, Quaternion, PoseArray, Transform, Vector3, TransformStamped
 
@@ -265,8 +237,8 @@ class BoardLocalization:
         t0TS=TransformStamped()
 
         t0.rotation=Quaternion(0,0,0,1)
-        t0.translation=Vector3(punto[0]/1000.0,punto[1]/1000.0,punto[2]/1000.0)
-        t0TS.header.frame_id="base_link"
+        t0.translation=Vector3(punto[0],punto[1],punto[2])
+        t0TS.header.frame_id=header_frame_id
         t0TS.header.stamp= rospy.Time.now()
         t0TS.child_frame_id=nome
         t0TS.transform=t0
