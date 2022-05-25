@@ -189,8 +189,17 @@ def getRedBlueButtons(value_in_gray,b_col_in,contours_in,new_img,ScreenPos):
                 center_coordinate = np.array([circles[1] + shift,circles[0] + shift])
                 #return(np.array([circles[1] + shift,circles[0] + shift]), butt_idx)
         else:
-            center_coordinate = np.array([circles[0] + shift])
 
+            center_coordinate_first = np.array([circles[0] + shift])
+            center_coordinate_second = np.array([circles[0] + shift])
+            distance_from_screen_first = np.linalg.norm(ScreenPos[0]-center_coordinate_first[0][:2])
+            distance_from_screen_second = np.linalg.norm(ScreenPos[0]-center_coordinate_second[0][:2])
+            rospy.loginfo(YELLOW + str(distance_from_screen_first) + END)
+            rospy.loginfo(YELLOW + str(distance_from_screen_second) + END)
+            if distance_from_screen_first<distance_from_screen_second:
+                center_coordinate = center_coordinate_first
+            else:
+                center_coordinate = center_coordinate_second
         distance_from_screen = np.linalg.norm(ScreenPos[0]-center_coordinate[0][:2])
 
         print("Screen pos:")

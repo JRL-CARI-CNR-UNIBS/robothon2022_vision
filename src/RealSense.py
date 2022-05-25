@@ -62,7 +62,28 @@ class RealSense():
     def callbackOnlyRgb(self,frameRgb):
         colorFrame = self.bridge.imgmsg_to_cv2(frameRgb, desired_encoding="passthrough")
         self.colorFrame = colorFrame.copy()
-        
+    
+    def setcameraInfo(self,cameraInfo):
+        print(cameraInfo)
+        self.intrinsics = rs2.intrinsics()
+        self.intrinsics.width = cameraInfo["width"]
+        self.intrinsics.height = cameraInfo["height"]
+        self.intrinsics.ppx = cameraInfo["K"][2]
+        self.intrinsics.ppy = cameraInfo["K"][5]
+        self.intrinsics.fx = cameraInfo["K"][0]
+        self.intrinsics.fy = cameraInfo["K"][4]
+
+        if cameraInfo["distortion_model"] == 'plumb_bob':
+            self.intrinsics.model = rs2.distortion.brown_conrady
+        elif cameraInfo["distortion_model"] == 'equidistant':
+            self.intrinsics.model = rs2.distortion.kannala_brandt4
+        self.intrinsics.coeffs = [i for i in cameraInfo["D"]]
+        self.cameraInfoReceived = True
+
+        #Reference frame
+        self.frame_id="camera_color_optical_frame_id"
+        rospy.loginfo("Camera frame id: {}".format(self.frame_id))  
+
     def cameraInfoCallback(self,cameraInfo):
         """
         Callback for get Intrinsic Parameter of Camera and create intrinsics object (pyrealsense2 library)

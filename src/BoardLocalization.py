@@ -2,6 +2,9 @@
 
 import rospy
 from std_srvs.srv import SetBool,SetBoolResponse
+from manipulation_msgs.msg import Location
+from manipulation_msgs.srv import AddLocations, AddLocationsRequest
+from geometry_msgs.msg import Pose, Point, Quaternion, PoseArray, Transform, Vector3, TransformStamped
 
 from RealSense import RealSense
 
@@ -28,6 +31,7 @@ SUCCESSFUL = "Successfully executed"
 NOT_SUCCESSFUL = "Not Successfully executed"
 
 SERVICE_NAME = "/robothon2022/board_localization"
+SERVICE_ADD_LOCATION_NAME = "/go_to_location_server/add_locations"
 
 class BoardLocalization:
 
@@ -35,16 +39,24 @@ class BoardLocalization:
 
 
         self.realsense=RealSense()
-
         # Retrieve camera parameters
         rospy.loginfo(YELLOW + "Waiting camera parameters" + END)
+
         self.realsense.getCameraParam()
         self.realsense.waitCameraInfo()
+
+        # camera_parameters = {"height": 720,"width": 1280,"distortion_model": "plumb_bob", "D": [0.0, 0.0, 0.0, 0.0, 0.0],"K": [902.4752197265625, 0.0, 633.35498046875, 0.0, 901.7176513671875, 379.5818786621094, 0.0, 0.0, 1.0]}
+        
+        # self.realsense.setcameraInfo(camera_parameters)
+
         rospy.loginfo(GREEN + "Camera parameters retrived correctly" + END)
 
         #Estimated parameters
         self.depth = 589    # Estimated distance
 
+        # rospy.wait_for_service(SERVICE_ADD_LOCATION_NAME)
+        # self.add_location = rospy.ServiceProxy(SERVICE_ADD_LOCATION_NAME, AddLocations)
+        self.br = tf2_ros.TransformBroadcaster()
         rospy.loginfo(GREEN + "Service alive ...." + END)
 
     def callback(self,request):
@@ -158,9 +170,9 @@ class BoardLocalization:
         print(M_world_camera)
 
 
-        self.pubTF(red_button_camera,"red_prima","camera_color_optical_frame")
-        self.pubTF(key_lock_camera,"keuy_prima","camera_color_optical_frame")
-        self.pubTF(screen_camera,"screen_prima","camera_color_optical_frame")
+        # self.pubTF(red_button_camera,"red_prima","camera_color_optical_frame")
+        # self.pubTF(key_lock_camera,"keuy_prima","camera_color_optical_frame")
+        # self.pubTF(screen_camera,"screen_prima","camera_color_optical_frame")
         print("red button respect camera")
         print(red_button_camera)
         red_button_world = np.dot(M_world_camera, self.get4Vector(red_button_camera))
@@ -213,22 +225,22 @@ class BoardLocalization:
         ################## Broadcast board tf ############
         rospy.loginfo(GREEN + "Publishing tf" + END)
         broadcaster = tf2_ros.StaticTransformBroadcaster()
-        static_transformStamped = geometry_msgs.msg.TransformStamped()
-        static_transformStamped.header.stamp = rospy.Time.now()
-        static_transformStamped.header.frame_id = "base_link"
-        static_transformStamped.child_frame_id = "board"
+        static_transformStamped_board = geometry_msgs.msg.TransformStamped()
+        static_transformStamped_board.header.stamp = rospy.Time.now()
+        static_transformStamped_board.header.frame_id = "base_link"
+        static_transformStamped_board.child_frame_id = "board"
 
-        static_transformStamped.transform.translation.x = M_camera_board[0,-1]
-        static_transformStamped.transform.translation.y = M_camera_board[1,-1]
-        static_transformStamped.transform.translation.z = M_camera_board[2,-1]
-        static_transformStamped.transform.rotation.x = rotation_quat[0]
-        static_transformStamped.transform.rotation.y = rotation_quat[1]
-        static_transformStamped.transform.rotation.z = rotation_quat[2]
-        static_transformStamped.transform.rotation.w = rotation_quat[3]
+        static_transformStamped_board.transform.translation.x = M_camera_board[0,-1]
+        static_transformStamped_board.transform.translation.y = M_camera_board[1,-1]
+        static_transformStamped_board.transform.translation.z = M_camera_board[2,-1]
+        static_transformStamped_board.transform.rotation.x = rotation_quat[0]
+        static_transformStamped_board.transform.rotation.y = rotation_quat[1]
+        static_transformStamped_board.transform.rotation.z = rotation_quat[2]
+        static_transformStamped_board.transform.rotation.w = rotation_quat[3]
 
-        broadcaster.sendTransform(static_transformStamped)
+        # broadcaster.sendTransform(static_transformStamped_board)
 
-
+        # self.broadcastTF(Quaternion(rotation_quat[0],rotation_quat[1],rotation_quat[2],rotation_quat[3]), Vector3(M_camera_board[0,-1],M_camera_board[1,-1],M_camera_board[2,-1]),"board", "base_link")
 
         ######################## anche con altro
 
@@ -273,20 +285,67 @@ class BoardLocalization:
 
         rospy.loginfo(GREEN + "Published tf" + END)
 
+        # location_to_add = Location()
+        # location_to_add.name = "reference"
+        # location_to_add.frame = "board"
+        # pose_to_add = Pose()
+        # pose_to_add.position = Point(0.137, 0.094, -0.155)
+        # pose_to_add.orientation = Quaternion(0.000, 0.000, 0.959, -0.284)
+        # location_to_add.pose = pose_to_add
 
+        # locations_request = AddLocationsRequest()
+        # locations_request.locations = [location_to_add]
+        # # print(location_to_add)
         # try:
+        #     srv_response = self.add_location(locations_request)
+        # except rospy.ServiceException as e:
+        #     rospy.loginfo(RED + "Error on add location srbv call" + END) 
+
+        # if srv_response.results == 1:
+        #     rospy.loginfo(GREEN + "Location added succesfully" + END)
+
+        static_transformStamped_reference = geometry_msgs.msg.TransformStamped()
+        static_transformStamped_reference.header.stamp = rospy.Time.now()
+        static_transformStamped_reference.header.frame_id = "board"
+        static_transformStamped_reference.child_frame_id = "reference"
+
+        static_transformStamped_reference.transform.translation.x = 0.137
+        static_transformStamped_reference.transform.translation.y = 0.094
+        static_transformStamped_reference.transform.translation.z = -0.155
+        static_transformStamped_reference.transform.rotation.x = 0.000
+        static_transformStamped_reference.transform.rotation.y = 0.000
+        static_transformStamped_reference.transform.rotation.z = 0.959
+        static_transformStamped_reference.transform.rotation.w = -0.284
+
+        broadcaster.sendTransform([static_transformStamped_board,static_transformStamped_reference])
+        # self.broadcastTF(Quaternion(0,0,0.959,-0.284), Vector3(0.137,0.094,-0.155), "reference","board")
+
         return SetBoolResponse(True,SUCCESSFUL)
-        # except :
-        #     return SetBoolResponse(False,NOT_SUCCESSFUL)
+
 
     def get4Vector(self,vect):
         vet = np.array([0.0,0.0,0.0,1.0])
         vet[:-1] = vect
         return vet
 
-    def pubTF(self,punto,nome, header_frame_id):
-        import tf2_ros
-        from geometry_msgs.msg import Pose, Point, Quaternion, PoseArray, Transform, Vector3, TransformStamped
+    def broadcastTF(self,rotation,translation,name, header_frame_id):
+
+        print("dentro")
+        t0=Transform()
+        t0TS=TransformStamped()
+
+        t0.rotation=rotation
+        t0.translation=translation
+        t0TS.header.frame_id=header_frame_id
+        t0TS.header.stamp= rospy.Time.now()
+        t0TS.child_frame_id=name
+        t0TS.transform=t0
+        
+        # rospy.sleep(2.0)
+        self.br.sendTransform(t0TS)
+        rospy.sleep(2.0)
+        
+    def pubTF(self,punto,name, header_frame_id):
 
         print("dentro")
         t0=Transform()
@@ -296,11 +355,12 @@ class BoardLocalization:
         t0.translation=Vector3(punto[0],punto[1],punto[2])
         t0TS.header.frame_id=header_frame_id
         t0TS.header.stamp= rospy.Time.now()
-        t0TS.child_frame_id=nome
+        t0TS.child_frame_id=name
         t0TS.transform=t0
-        br = tf2_ros.TransformBroadcaster()
+        # br = tf2_ros.TransformBroadcaster()
+        # rospy.sleep(2.0)
+        self.br.sendTransform(t0TS)
         rospy.sleep(2.0)
-        br.sendTransform(t0TS)
         # broadcaster = tf2_ros.StaticTransformBroadcaster()
         # static_transformStamped = geometry_msgs.msg.TransformStamped()
         # static_transformStamped.header.stamp = rospy.Time.now()
