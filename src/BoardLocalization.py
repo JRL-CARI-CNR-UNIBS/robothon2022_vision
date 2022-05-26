@@ -56,8 +56,10 @@ class BoardLocalization:
 
         # rospy.wait_for_service(SERVICE_ADD_LOCATION_NAME)
         # self.add_location = rospy.ServiceProxy(SERVICE_ADD_LOCATION_NAME, AddLocations)
-        self.br = tf2_ros.TransformBroadcaster()
+
+        #TfBroadcaster
         self.broadcaster = tf2_ros.StaticTransformBroadcaster()
+        
         rospy.loginfo(GREEN + "Service alive ...." + END)
 
     def callback(self,request):
@@ -192,11 +194,6 @@ class BoardLocalization:
         print(key_lock_world)
         print(screen_world)
 
-        self.pubTF(red_button_world,"red_dopo","base_link")
-        self.pubTF(key_lock_world,"key","base_link")
-        self.pubTF(screen_world,"screen","base_link")
-
-
         # red_button_camera = np.array(self.realsense.deproject(RedBlueButPos[0][0],RedBlueButPos[0][1],self.depth))
         # key_lock_camera = np.array(self.realsense.deproject(KeyLockPos[0][0],KeyLockPos[0][1],self.depth))
         # screen_camera = np.array(self.realsense.deproject(ScreenPos[0][0],ScreenPos[0][1],self.depth))
@@ -225,19 +222,6 @@ class BoardLocalization:
 
         ################## Broadcast board tf ############
         rospy.loginfo(GREEN + "Publishing tf" + END)
-        # broadcaster = tf2_ros.StaticTransformBroadcaster()
-        # static_transformStamped_board = geometry_msgs.msg.TransformStamped()
-        # static_transformStamped_board.header.stamp = rospy.Time.now()
-        # static_transformStamped_board.header.frame_id = "base_link"
-        # static_transformStamped_board.child_frame_id = "board"
-
-        # static_transformStamped_board.transform.translation.x = M_camera_board[0,-1]
-        # static_transformStamped_board.transform.translation.y = M_camera_board[1,-1]
-        # static_transformStamped_board.transform.translation.z = M_camera_board[2,-1]
-        # static_transformStamped_board.transform.rotation.x = rotation_quat[0]
-        # static_transformStamped_board.transform.rotation.y = rotation_quat[1]
-        # static_transformStamped_board.transform.rotation.z = rotation_quat[2]
-        # static_transformStamped_board.transform.rotation.w = rotation_quat[3]
         static_transformStamped_board = self.getStaticTrasformStamped("base_link", "board",M_camera_board[0:3,-1] ,rotation_quat)
 
         # broadcaster.sendTransform(static_transformStamped_board)
@@ -310,18 +294,6 @@ class BoardLocalization:
         # if srv_response.results == 1:
         #     rospy.loginfo(GREEN + "Location added succesfully" + END)
 
-        # static_transformStamped_reference = geometry_msgs.msg.TransformStamped()
-        # static_transformStamped_reference.header.stamp = rospy.Time.now()
-        # static_transformStamped_reference.header.frame_id = "board"
-        # static_transformStamped_reference.child_frame_id = "reference"
-
-        # static_transformStamped_reference.transform.translation.x = 0.137
-        # static_transformStamped_reference.transform.translation.y = 0.094
-        # static_transformStamped_reference.transform.translation.z = -0.155
-        # static_transformStamped_reference.transform.rotation.x = 0.000
-        # static_transformStamped_reference.transform.rotation.y = 0.000
-        # static_transformStamped_reference.transform.rotation.z = 0.959
-        # static_transformStamped_reference.transform.rotation.w = -0.284
         static_transformStamped_reference = self.getStaticTrasformStamped("board", "reference", [0.137, 0.094,-0.155],[0.0, 0.0, 0.959,-0.284])
         tf_key_lock = self.getStaticTrasformStamped("base_link", "key_lock", key_lock_world,rotation_quat)
         
@@ -350,54 +322,7 @@ class BoardLocalization:
         static_transformStamped_board.transform.rotation.z = quat[2]
         static_transformStamped_board.transform.rotation.w = quat[3]
         return static_transformStamped_board
-    def broadcastTF(self,rotation,translation,name, header_frame_id):
 
-        print("dentro")
-        t0=Transform()
-        t0TS=TransformStamped()
-
-        t0.rotation=rotation
-        t0.translation=translation
-        t0TS.header.frame_id=header_frame_id
-        t0TS.header.stamp= rospy.Time.now()
-        t0TS.child_frame_id=name
-        t0TS.transform=t0
-        
-        # rospy.sleep(2.0)
-        self.br.sendTransform(t0TS)
-        rospy.sleep(2.0)
-        
-    def pubTF(self,punto,name, header_frame_id):
-
-        print("dentro")
-        t0=Transform()
-        t0TS=TransformStamped()
-
-        t0.rotation=Quaternion(0,0,0,1)
-        t0.translation=Vector3(punto[0],punto[1],punto[2])
-        t0TS.header.frame_id=header_frame_id
-        t0TS.header.stamp= rospy.Time.now()
-        t0TS.child_frame_id=name
-        t0TS.transform=t0
-        # br = tf2_ros.TransformBroadcaster()
-        # rospy.sleep(2.0)
-        self.br.sendTransform(t0TS)
-        rospy.sleep(2.0)
-        # broadcaster = tf2_ros.StaticTransformBroadcaster()
-        # static_transformStamped = geometry_msgs.msg.TransformStamped()
-        # static_transformStamped.header.stamp = rospy.Time.now()
-        # static_transformStamped.header.frame_id = "base_link"
-        # static_transformStamped.child_frame_id = nome
-        #
-        # static_transformStamped.transform.translation.x = punto[0]
-        # static_transformStamped.transform.translation.y = punto[1]
-        # static_transformStamped.transform.translation.z = punto[2]
-        # static_transformStamped.transform.rotation.x = 0
-        # static_transformStamped.transform.rotation.y = 0
-        # static_transformStamped.transform.rotation.z = 0
-        # static_transformStamped.transform.rotation.w = 1
-        #
-        # broadcaster.sendTransform(static_transformStamped)
 
 
 def main():
