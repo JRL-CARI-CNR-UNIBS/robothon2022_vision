@@ -3,6 +3,11 @@
 import cv2
 import numpy as np
 from sklearn.cluster import KMeans
+from skimage import data, color
+from skimage.transform import hough_circle, hough_circle_peaks
+from skimage.feature import canny
+from skimage.draw import circle_perimeter
+from skimage.util import img_as_ubyte
 from math import cos,sin
 import rospy
 
@@ -67,7 +72,91 @@ def getScreen(a_col_in,contours_in):
 
     return np.array([[cX,cY]]), max_idx
 
+def getRedBlueButtonsNewVersion(value_in_gray,b_col_in,contours_in,new_img,ScreenPos):
+    rospy.loginfo(RED + "DENTRO RED BLUE" + END)
+    passed_imgs = 0
+    butt_idx    = 0
+    std_max     = 0
+    set_butt    = False
+    roi_list = []
+    print(len(contours_in))
+    buttons_found = False
+    ind=0
+    while not buttons_found:
+        len(contours_in)
+        ind +=1
+        for idx,cnt in enumerate(contours_in):
+            print(idx)
+            area = cv2.contourArea(cnt)
+            print("area")
+            print(area)
+            if (area > 5000) or (area < 700):       #era 1000
+                continue
+            passed_imgs += 1
+            x,y,w,h = cv2.boundingRect(cnt)
+            ROI = b_col_in[y:y+h, x:x+w]
 
+            flattened = ROI.reshape((ROI.shape[0] * ROI.shape[1], 1))
+            clt = KMeans(n_clusters = 3)
+            clt.fit(flattened)
+
+            if np.std(clt.cluster_centers_) > std_max:
+                butt_idx = idx
+                std_max  = np.std(clt.cluster_centers_)
+            else:
+                continue
+        print("button idx")
+        print(butt_idx)
+
+        x,y,w,h           = cv2.boundingRect(contours_in[butt_idx])
+        butt_image_b      = b_col_in[y:y+h, x:x+w]
+        shift             = np.asarray([x,y])
+        butt_image_gray   = value_in_gray[y:y+h, x:x+w]
+        
+        #Find edges
+        edges = cv2.Canny(butt_image_gray,100,200)
+
+        # Detect two radii
+        hough_radii = np.arange(5, 12, 1)   #Looking for that radius 5,6,7,..12
+        hough_res = hough_circle(edges, hough_radii)
+
+        # Select the most prominent 3 circles
+        accums, cx, cy, radii = hough_circle_peaks(hough_res, hough_radii,
+                                                total_num_peaks=2)
+
+        if butt_image_b[cy[0],cx[0]] > butt_image_b[cy[1],cx[1]]:   #red
+            center_coordinate_red = np.array([cx[0],cy[0]])
+            center_coordinate_blue = np.array([cx[1],cy[1]])
+            print(center_coordinate_red)
+            print(center_coordinate_blue)
+            center_coordinate_red+=shift
+            center_coordinate_blue+=shift
+        else:   #blue
+            center_coordinate_red = np.array([cx[1],cy[1]])
+            center_coordinate_blue = np.array([cx[0],cy[0]])
+            print(center_coordinate_red)
+            print(center_coordinate_blue)
+            center_coordinate_red+=shift
+            center_coordinate_blue+=shift
+        rospy.loginfo(RED + "*************************"+ END )
+        print(center_coordinate_red)
+        print(center_coordinate_blue)
+        
+        
+        # new_img = cv2.circle(new_img, (center_coordinate_red[0],center_coordinate_red[1]), 5, color = (0, 0, 255), thickness = 2)
+        # new_img = cv2.circle(new_img, (center_coordinate_blue[0],center_coordinate_blue[1]), 5, color = (0, 255, 0), thickness = 2)
+
+        distance_from_screen = np.linalg.norm(ScreenPos[0]-center_coordinate_red)
+        print(distance_from_screen)
+        if distance_from_screen>240:
+            distance_from_screen_acceptable = True
+            rospy.loginfo(GREEN + "Bottoni distanti giusti" + END)
+        else:
+            rospy.loginfo(RED + "Troppo poco distante" + END)
+        # cv2.imshow("Buttons identified",new_img)
+        
+        return center_coordinate_red,center_coordinate_blue, butt_idx
+    
 def getRedBlueButtons(value_in_gray,b_col_in,contours_in,new_img,ScreenPos):
     rospy.loginfo(RED + "DENTRO RED BLUE" + END)
     distance_from_screen_acceptable = False

@@ -119,9 +119,10 @@ class BoardLocalization:
             rospy.loginfo(GREEN + "Identifying red button..." + END)
             new_img = getRoi(rgb_frame,144,669,360,1150)
             crop_img2 = getRoi(rgb_frame,144,669,360,1150)
-            RedBlueButPos, id_red_blue_contour  = getRedBlueButtons(saturation,b_col,contours_limited,crop_img2, ScreenPos)
+            RedBlueButPos, BlueButtonPos, id_red_blue_contour  = getRedBlueButtonsNewVersion(saturation,b_col,contours_limited,crop_img2, ScreenPos)
             rospy.loginfo(GREEN +"Identified red button"+ END)
-
+            print(RedBlueButPos)
+            print(BlueButtonPos)
             contours_limited.pop(id_red_blue_contour)
 
             crop_img = getRoi(rgb_frame,144,669,360,1150)
@@ -138,7 +139,8 @@ class BoardLocalization:
             # Crop image (in order to get the interested area)
             new_img = getRoi(rgb_frame,144,669,360,1150)
             new_img = cv2.circle(crop_img, (ScreenPos[0][0],ScreenPos[0][1]), 5, color = (255, 0, 0), thickness = 2)
-            new_img = cv2.circle(crop_img, (RedBlueButPos[0][0],RedBlueButPos[0][1]), 5, color = (255, 0, 0), thickness = 2)
+            new_img = cv2.circle(crop_img, (RedBlueButPos[0],RedBlueButPos[1]), 5, color = (0, 0, 255), thickness = 2)
+            new_img = cv2.circle(crop_img, (BlueButtonPos[0],BlueButtonPos[1]), 5, color = (255, 0, 0), thickness = 2)
             new_img = cv2.circle(crop_img, (KeyLockPos[0][0],KeyLockPos[0][1]), 5, color = (255, 0, 0), thickness = 2)
 
             cv2.imshow("Identificato",new_img)
