@@ -57,6 +57,7 @@ class BoardLocalization:
         # rospy.wait_for_service(SERVICE_ADD_LOCATION_NAME)
         # self.add_location = rospy.ServiceProxy(SERVICE_ADD_LOCATION_NAME, AddLocations)
         self.br = tf2_ros.TransformBroadcaster()
+        self.broadcaster = tf2_ros.StaticTransformBroadcaster()
         rospy.loginfo(GREEN + "Service alive ...." + END)
 
     def callback(self,request):
@@ -224,19 +225,20 @@ class BoardLocalization:
 
         ################## Broadcast board tf ############
         rospy.loginfo(GREEN + "Publishing tf" + END)
-        broadcaster = tf2_ros.StaticTransformBroadcaster()
-        static_transformStamped_board = geometry_msgs.msg.TransformStamped()
-        static_transformStamped_board.header.stamp = rospy.Time.now()
-        static_transformStamped_board.header.frame_id = "base_link"
-        static_transformStamped_board.child_frame_id = "board"
+        # broadcaster = tf2_ros.StaticTransformBroadcaster()
+        # static_transformStamped_board = geometry_msgs.msg.TransformStamped()
+        # static_transformStamped_board.header.stamp = rospy.Time.now()
+        # static_transformStamped_board.header.frame_id = "base_link"
+        # static_transformStamped_board.child_frame_id = "board"
 
-        static_transformStamped_board.transform.translation.x = M_camera_board[0,-1]
-        static_transformStamped_board.transform.translation.y = M_camera_board[1,-1]
-        static_transformStamped_board.transform.translation.z = M_camera_board[2,-1]
-        static_transformStamped_board.transform.rotation.x = rotation_quat[0]
-        static_transformStamped_board.transform.rotation.y = rotation_quat[1]
-        static_transformStamped_board.transform.rotation.z = rotation_quat[2]
-        static_transformStamped_board.transform.rotation.w = rotation_quat[3]
+        # static_transformStamped_board.transform.translation.x = M_camera_board[0,-1]
+        # static_transformStamped_board.transform.translation.y = M_camera_board[1,-1]
+        # static_transformStamped_board.transform.translation.z = M_camera_board[2,-1]
+        # static_transformStamped_board.transform.rotation.x = rotation_quat[0]
+        # static_transformStamped_board.transform.rotation.y = rotation_quat[1]
+        # static_transformStamped_board.transform.rotation.z = rotation_quat[2]
+        # static_transformStamped_board.transform.rotation.w = rotation_quat[3]
+        static_transformStamped_board = self.getStaticTrasformStamped("base_link", "board",M_camera_board[0:3,-1] ,rotation_quat)
 
         # broadcaster.sendTransform(static_transformStamped_board)
 
@@ -308,22 +310,22 @@ class BoardLocalization:
         # if srv_response.results == 1:
         #     rospy.loginfo(GREEN + "Location added succesfully" + END)
 
-        static_transformStamped_reference = geometry_msgs.msg.TransformStamped()
-        static_transformStamped_reference.header.stamp = rospy.Time.now()
-        static_transformStamped_reference.header.frame_id = "board"
-        static_transformStamped_reference.child_frame_id = "reference"
+        # static_transformStamped_reference = geometry_msgs.msg.TransformStamped()
+        # static_transformStamped_reference.header.stamp = rospy.Time.now()
+        # static_transformStamped_reference.header.frame_id = "board"
+        # static_transformStamped_reference.child_frame_id = "reference"
 
-        static_transformStamped_reference.transform.translation.x = 0.137
-        static_transformStamped_reference.transform.translation.y = 0.094
-        static_transformStamped_reference.transform.translation.z = -0.155
-        static_transformStamped_reference.transform.rotation.x = 0.000
-        static_transformStamped_reference.transform.rotation.y = 0.000
-        static_transformStamped_reference.transform.rotation.z = 0.959
-        static_transformStamped_reference.transform.rotation.w = -0.284
-
-        tf_key_lock = self.getStaticTrasformStamped(self,"base_link", "key_lock", key_lock_world,rotation_quat)
+        # static_transformStamped_reference.transform.translation.x = 0.137
+        # static_transformStamped_reference.transform.translation.y = 0.094
+        # static_transformStamped_reference.transform.translation.z = -0.155
+        # static_transformStamped_reference.transform.rotation.x = 0.000
+        # static_transformStamped_reference.transform.rotation.y = 0.000
+        # static_transformStamped_reference.transform.rotation.z = 0.959
+        # static_transformStamped_reference.transform.rotation.w = -0.284
+        static_transformStamped_reference = self.getStaticTrasformStamped("board", "reference", [0.137, 0.094,-0.155],[0.0, 0.0, 0.959,-0.284])
+        tf_key_lock = self.getStaticTrasformStamped("base_link", "key_lock", key_lock_world,rotation_quat)
         
-        broadcaster.sendTransform([static_transformStamped_board,static_transformStamped_reference,tf_key_lock])
+        self.broadcaster.sendTransform([static_transformStamped_board,static_transformStamped_reference,tf_key_lock])
         # self.broadcastTF(Quaternion(0,0,0.959,-0.284), Vector3(0.137,0.094,-0.155), "reference","board")
 
         return SetBoolResponse(True,SUCCESSFUL)
