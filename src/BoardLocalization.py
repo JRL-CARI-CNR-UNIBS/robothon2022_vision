@@ -244,25 +244,26 @@ class BoardLocalization:
 
         ######################## anche con altro
 
-        x_axis = ( key_lock_camera - red_button_camera ) / np.linalg.norm( key_lock_camera - red_button_camera )
+        ###### Questo è il calcolo della tf della board rispetto camera senza sistemare la z, orientato male#############
+        # x_axis = ( key_lock_camera - red_button_camera ) / np.linalg.norm( key_lock_camera - red_button_camera )
 
-        y_axis_first_approach = ( screen_camera - red_button_camera )
-        y_axis_norm = y_axis_first_approach - np.dot(y_axis_first_approach,x_axis)/(np.dot(x_axis,x_axis))*x_axis
-        y_axis_norm = y_axis_norm / np.linalg.norm(y_axis_norm)
+        # y_axis_first_approach = ( screen_camera - red_button_camera )
+        # y_axis_norm = y_axis_first_approach - np.dot(y_axis_first_approach,x_axis)/(np.dot(x_axis,x_axis))*x_axis
+        # y_axis_norm = y_axis_norm / np.linalg.norm(y_axis_norm)
 
-        z_axis = np.cross(x_axis,y_axis_norm)       
+        # z_axis = np.cross(x_axis,y_axis_norm)       
         
         
-        rot_mat_camera_board = np.array([x_axis,y_axis_norm,z_axis]).T
-        M_camera_board_only_rot = tf.transformations.identity_matrix()
-        M_camera_board_only_rot[0:-1,0:-1]=rot_mat_camera_board
+        # rot_mat_camera_board = np.array([x_axis,y_axis_norm,z_axis]).T
+        # M_camera_board_only_rot = tf.transformations.identity_matrix()
+        # M_camera_board_only_rot[0:-1,0:-1]=rot_mat_camera_board
         
-        M_camera_board_only_tra = tf.transformations.identity_matrix()
-        M_camera_board_only_tra[0:3,-1]=np.array([red_button_camera[0],red_button_camera[1],red_button_camera[2]])
+        # M_camera_board_only_tra = tf.transformations.identity_matrix()
+        # M_camera_board_only_tra[0:3,-1]=np.array([red_button_camera[0],red_button_camera[1],red_button_camera[2]])
         
-        M_camera_board = np.dot(M_camera_board_only_tra,M_camera_board_only_rot)
+        # M_camera_board = np.dot(M_camera_board_only_tra,M_camera_board_only_rot)
         
-        rotation_quat = tf.transformations.quaternion_from_matrix(M_camera_board)
+        # rotation_quat = tf.transformations.quaternion_from_matrix(M_camera_board)
 
 
         ################## Broadcast board tf ############
@@ -282,6 +283,9 @@ class BoardLocalization:
         # static_transformStamped.transform.rotation.w = rotation_quat[3]
 
         # broadcaster.sendTransform(static_transformStamped)
+        
+        
+        ######################################################################################
 
         rospy.loginfo(GREEN + "Published tf" + END)
 
@@ -317,7 +321,9 @@ class BoardLocalization:
         static_transformStamped_reference.transform.rotation.z = 0.959
         static_transformStamped_reference.transform.rotation.w = -0.284
 
-        broadcaster.sendTransform([static_transformStamped_board,static_transformStamped_reference])
+        tf_key_lock = self.getStaticTrasformStamped(self,"base_link", "key_lock", key_lock_world,rotation_quat)
+        
+        broadcaster.sendTransform([static_transformStamped_board,static_transformStamped_reference,tf_key_lock])
         # self.broadcastTF(Quaternion(0,0,0.959,-0.284), Vector3(0.137,0.094,-0.155), "reference","board")
 
         return SetBoolResponse(True,SUCCESSFUL)
@@ -328,6 +334,20 @@ class BoardLocalization:
         vet[:-1] = vect
         return vet
 
+    def getStaticTrasformStamped(self,header_frame_id_name, child_frame_id_name, tra,quat):
+        static_transformStamped_board = geometry_msgs.msg.TransformStamped()
+        static_transformStamped_board.header.stamp = rospy.Time.now()
+        static_transformStamped_board.header.frame_id = header_frame_id_name
+        static_transformStamped_board.child_frame_id = child_frame_id_name
+
+        static_transformStamped_board.transform.translation.x = tra[0]
+        static_transformStamped_board.transform.translation.y = tra[1]
+        static_transformStamped_board.transform.translation.z = tra[2]
+        static_transformStamped_board.transform.rotation.x = quat[0]
+        static_transformStamped_board.transform.rotation.y = quat[1]
+        static_transformStamped_board.transform.rotation.z = quat[2]
+        static_transformStamped_board.transform.rotation.w = quat[3]
+        return static_transformStamped_board
     def broadcastTF(self,rotation,translation,name, header_frame_id):
 
         print("dentro")
