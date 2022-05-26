@@ -147,6 +147,8 @@ def getRedBlueButtonsNewVersion(value_in_gray,b_col_in,contours_in,new_img,Scree
         # new_img = cv2.circle(new_img, (center_coordinate_blue[0],center_coordinate_blue[1]), 5, color = (0, 255, 0), thickness = 2)
 
         distance_from_screen = np.linalg.norm(ScreenPos[0]-center_coordinate_red)
+        distance_from_buttons = np.linalg.norm(center_coordinate_red-center_coordinate_blue)
+        rospy.loginfo(RED + "Distance from buttons: {}".format(distance_from_buttons) + END)
         print(distance_from_screen)
         if distance_from_screen>240:
             distance_from_screen_acceptable = True
@@ -154,6 +156,9 @@ def getRedBlueButtonsNewVersion(value_in_gray,b_col_in,contours_in,new_img,Scree
         else:
             rospy.loginfo(RED + "Troppo poco distante" + END)
         # cv2.imshow("Buttons identified",new_img)
+        if distance_from_buttons<15:
+            rospy.loginfo(RED + "Buttons too much close: {}".format(distance_from_buttons) + END)
+            raise Exception("Buttons too much close")
         
         return center_coordinate_red,center_coordinate_blue, butt_idx
     

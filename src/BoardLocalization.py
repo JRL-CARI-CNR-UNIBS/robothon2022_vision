@@ -114,9 +114,27 @@ class BoardLocalization:
 
 
         ################## Identify red button #######
-        rospy.loginfo(GREEN +"Identifying red button..."+ END)
-        RedButPos, BlueButtonPos, id_red_blue_contour  = getRedBlueButtonsNewVersion(saturation,b_col,contours_limited,crop_img, ScreenPos)
-        rospy.loginfo(GREEN +"Identified red button"+ END)
+        buttons_not_found = True
+        while buttons_not_found:
+            try:
+                rospy.loginfo(GREEN +"Identifying red button..."+ END)
+                RedButPos, BlueButtonPos, id_red_blue_contour  = getRedBlueButtonsNewVersion(saturation,b_col,contours_limited,crop_img, ScreenPos)
+                rospy.loginfo(GREEN +"Identified red button"+ END)
+                buttons_not_found=False
+            except:
+                rospy.loginfo(GREEN +"Repeting acquisition, screen identification buttons"+ END)   
+                ##### Cosa orrenda         ######
+                self.realsense.acquireOnce()
+                rgb_frame = self.realsense.getColorFrame()
+                crop_img = getRoi(rgb_frame,144,669,360,1150)
+                hsv, lab, bw = getAllColorSpaces(crop_img)
+                hue,saturation,value = cv2.split(hsv)
+                l_col,a_col,b_col    = cv2.split(lab)
+                ret,value_th = cv2.threshold(value,90,255,0)
+                board_cnt, contours_limited, contours = getBoardContour(value_th)
+                ScreenPos, idx_screen = getScreen(a_col,contours_limited)
+                contours_limited.pop(idx_screen)     #Remove screen contour from list        
+                ###### FIne cosa orrenda   ####
         print(RedButPos)
         print(BlueButtonPos)
         
