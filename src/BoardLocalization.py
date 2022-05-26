@@ -148,7 +148,7 @@ class BoardLocalization:
         ############### Computing board tf ##################
         rospy.loginfo(GREEN + "Computing tf" + END)
 
-        red_button_camera = np.array(self.realsense.deproject(RedButPos[0][0],RedButPos[0][1],self.depth))/1000.0
+        red_button_camera = np.array(self.realsense.deproject(RedButPos[0],RedButPos[1],self.depth))/1000.0
         key_lock_camera = np.array(self.realsense.deproject(KeyLockPos[0][0],KeyLockPos[0][1],self.depth))/1000.0
         screen_camera = np.array(self.realsense.deproject(ScreenPos[0][0],ScreenPos[0][1],self.depth))/1000.0
 
