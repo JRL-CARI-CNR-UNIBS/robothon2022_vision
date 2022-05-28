@@ -15,7 +15,9 @@ import geometry_msgs.msg
 import numpy as np
 
 import cv2
-
+from random import seed
+from random import randint
+seed(1)
 from utils import *
 
 GREEN = '\033[92m'
@@ -71,8 +73,8 @@ class BoardLocalization:
 
         rospy.loginfo(RED + "INIZIO A IDENTIFICARE" + END)
         rgb_frame = self.realsense.getColorFrame()
-        # images_path = "/home/teamcari/projects/robothon2022_ws/src/robothon2022_vision/file"
-        # self.realsense.saveImage(images_path +"/frame_acquired.png")
+        images_path = "/home/teamcari/projects/robothon2022_ws/src/robothon2022_vision/file"
+        self.realsense.saveImage(images_path +"/frame_acquired" + str(randint(1,10000)) +".png")
         cv2.imshow("frame acq", rgb_frame)
         cv2.waitKey(0)
         cv2.destroyAllWindows()

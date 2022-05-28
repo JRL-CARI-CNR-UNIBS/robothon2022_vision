@@ -115,7 +115,9 @@ def getRedBlueButtonsNewVersion(value_in_gray,b_col_in,contours_in,new_img,Scree
         
         #Find edges
         edges = cv2.Canny(butt_image_gray,100,200)
-
+        # cv2.imshow("edges",edges)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
         # Detect two radii
         hough_radii = np.arange(5, 12, 1)   #Looking for that radius 5,6,7,..12
         hough_res = hough_circle(edges, hough_radii)
@@ -138,7 +140,7 @@ def getRedBlueButtonsNewVersion(value_in_gray,b_col_in,contours_in,new_img,Scree
             print(center_coordinate_blue)
             center_coordinate_red+=shift
             center_coordinate_blue+=shift
-        rospy.loginfo(RED + "*************************"+ END )
+        # rospy.loginfo(RED + "*************************"+ END )
         print(center_coordinate_red)
         print(center_coordinate_blue)
         
@@ -154,14 +156,75 @@ def getRedBlueButtonsNewVersion(value_in_gray,b_col_in,contours_in,new_img,Scree
             distance_from_screen_acceptable = True
             rospy.loginfo(GREEN + "Bottoni distanti giusti" + END)
         else:
-            rospy.loginfo(RED + "Troppo poco distante" + END)
+            rospy.loginfo(RED + "********* Troppo poco distante ************" + END)
+            buttons_found = False 
+            if contours_in:
+                    contours_in.pop(butt_idx)
+                    continue
+            else:
+                raise Exception("Buttons too much close")
         # cv2.imshow("Buttons identified",new_img)
-        if distance_from_buttons<15:
+        if distance_from_buttons<14:
             rospy.loginfo(RED + "Buttons too much close: {}".format(distance_from_buttons) + END)
-            raise Exception("Buttons too much close")
+            okMoreCircle, center_coordinate_red,center_coordinate_blue = tryWithMoreCircle(hough_res,butt_image_b,shift)
+            if not okMoreCircle:
+                raise Exception("Buttons too much close")
         
         return center_coordinate_red,center_coordinate_blue, butt_idx
+def tryWithMoreCircle(hough_res, butt_image_b,shift):
+    rospy.loginfo(GREEN + "-----------  DENTRO TRY MORE CIRCLE  --------------" + END)
+
+    hough_radii = np.arange(7, 12, 1)   #Looking for that radius 5,6,7,..12
+    number_of_circles=4
+    # Select the most prominent 3 circles
+    accums, cx, cy, radii = hough_circle_peaks(hough_res, hough_radii,
+                                            total_num_peaks=number_of_circles)
+
+    buttons_1 = np.array(cy[0],cx[0])
+    buttons_2 = np.array(cy[1],cx[1])
+    buttons_3 = np.array(cy[2],cx[2])
+    distance_12 = np.linalg.norm(buttons_1-buttons_2)
+    distance_13 =np.linalg.norm(buttons_1-buttons_3)
+    distance_23 =np.linalg.norm(buttons_2-buttons_3)
     
+    max_distance = max(distance_12,distance_13,distance_23)
+    eps = 0.1
+    if np.abs(max_distance-distance_12)<eps:
+        butt1 = 0
+        butt2 = 1
+    elif np.abs(max_distance-distance_13)<eps:
+        butt1 = 1
+        butt2 = 3
+    elif np.abs(max_distance-distance_23)<eps:
+        butt1 = 2
+        butt2 = 3
+
+    rospy.loginfo(YELLOW + "************************************" + END)
+    print(distance_12)
+    print(distance_13)
+    print(distance_23)
+    if butt_image_b[cy[butt1],cx[butt1]] > butt_image_b[cy[butt2],cx[butt2]]:   #red
+        center_coordinate_red = np.array([cx[butt1],cy[butt1]])
+        center_coordinate_blue = np.array([cx[butt2],cy[butt2]])
+        print(center_coordinate_red)
+        print(center_coordinate_blue)
+        center_coordinate_red+=shift
+        center_coordinate_blue+=shift
+    else:   #blue
+        center_coordinate_red = np.array([cx[butt2],cy[butt2]])
+        center_coordinate_blue = np.array([cx[butt1],cy[butt1]])
+        print(center_coordinate_red)
+        print(center_coordinate_blue)
+        center_coordinate_red+=shift
+        center_coordinate_blue+=shift
+    
+    distance_from_buttons = np.linalg.norm(center_coordinate_red-center_coordinate_blue)
+    if distance_from_buttons<14:
+        return False, center_coordinate_red,center_coordinate_blue
+    else: 
+        return True, center_coordinate_red,center_coordinate_blue
+
+
 def getRedBlueButtons(value_in_gray,b_col_in,contours_in,new_img,ScreenPos):
     rospy.loginfo(RED + "DENTRO RED BLUE" + END)
     distance_from_screen_acceptable = False
