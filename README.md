@@ -8,4 +8,3 @@ The features are recognized by applying border detection, color clustering, cann
 
 ## Requirements
 - **realsense-ros**: you can find the necessary package [here](https://github.com/IntelRealSense/realsense-ros)
-# robothon2022_vision
