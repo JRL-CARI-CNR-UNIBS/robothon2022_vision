@@ -75,11 +75,11 @@ class BoardLocalization:
         rgb_frame = self.realsense.getColorFrame()
         images_path = "/home/teamcari/projects/robothon2022_ws/src/robothon2022_vision/file"
         self.realsense.saveImage(images_path +"/frame_acquired" + str(randint(1,10000)) +".png")
-        cv2.imshow("frame acq", rgb_frame)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        # cv2.imshow("frame acq", rgb_frame)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
         ################# Macro ROI #################
-        crop_img = getRoi(rgb_frame,144,669,360,1150)
+        crop_img = getRoi(rgb_frame,144,645,370,1150)
         hsv, lab, bw = getAllColorSpaces(crop_img)
         #############################################
 
@@ -99,15 +99,15 @@ class BoardLocalization:
         contours_limited.pop(idx_screen)     #Remove screen contour from list
 
         rospy.loginfo(GREEN + "Screen position: {}".format(ScreenPos) + END)
-        new_img = getRoi(rgb_frame,144,669,360,1150)
+        new_img = getRoi(rgb_frame,144,645,370,1150)
         new_img = cv2.circle(crop_img, (ScreenPos[0][0],ScreenPos[0][1]), 5, color = (255, 0, 0), thickness = 2)
         # new_img = cv2.circle(crop_img, (RedBlueButPos[0][0],RedBlueButPos[0][1]), 5, color = (255, 0, 0), thickness = 2)
         # new_img = cv2.circle(crop_img, (KeyLockPos[0][0],KeyLockPos[0][1]), 5, color = (255, 0, 0), thickness = 2)
 
-        cv2.imshow("Identificato",new_img)
-        cv2.imshow("TH",value_th)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        # cv2.imshow("Identificato",new_img)
+        # cv2.imshow("TH",value_th)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
 
         #crop_img = getRoi(rgb_frame,144,669,360,1150)
 
@@ -130,7 +130,7 @@ class BoardLocalization:
                 ##### Cosa orrenda         ######
                 self.realsense.acquireOnce()
                 rgb_frame = self.realsense.getColorFrame()
-                crop_img = getRoi(rgb_frame,144,669,360,1150)
+                crop_img = getRoi(rgb_frame,144,645,370,1150)
                 hsv, lab, bw = getAllColorSpaces(crop_img)
                 hue,saturation,value = cv2.split(hsv)
                 l_col,a_col,b_col    = cv2.split(lab)
@@ -144,7 +144,7 @@ class BoardLocalization:
         
         contours_limited.pop(id_red_blue_contour)
 
-        crop_img = getRoi(rgb_frame,144,669,360,1150)
+        crop_img = getRoi(rgb_frame,144,650,370,1150)
 
 
 
@@ -156,7 +156,7 @@ class BoardLocalization:
         ##############################################
 
         # Crop image (in order to get the interested area)
-        new_img = getRoi(rgb_frame,144,669,360,1150)
+        new_img = getRoi(rgb_frame,144,645,370,1150)
         new_img = cv2.circle(crop_img, (ScreenPos[0][0],ScreenPos[0][1]), 5, color = (255, 0, 0), thickness = 2)
         new_img = cv2.circle(crop_img, (RedButPos[0],RedButPos[1]), 5, color = (0, 0, 255), thickness = 2)
         new_img = cv2.circle(crop_img, (BlueButtonPos[0],BlueButtonPos[1]), 5, color = (255, 0, 0), thickness = 2)

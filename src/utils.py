@@ -52,7 +52,7 @@ def getScreen(a_col_in,contours_in):
         passed_imgs += 1
         mask = np.zeros(a_col_in.shape[:2],np.uint8)
         cv2.drawContours(mask, [cnt], 0, (255,255,255), -1)
-        cv2.imshow("screen", mask)
+        # cv2.imshow("screen", mask)
 
         ROI = cv2.bitwise_and(a_col_in,a_col_in,mask = mask)
         dst = cv2.inRange(ROI, 150, 255)
@@ -440,7 +440,7 @@ def getKeyLock(lab_l_in,contours_in,orig,ScreenPos,new_img):
 
             while cv2.waitKey(33) != ord('a'):
                 butt_image_gray_copy=ROI_key.copy()
-                cv2.imshow('image',butt_image_gray_copy)
+                # cv2.imshow('image',butt_image_gray_copy)
                 #To Get Parameter values from Trackbar Values
                 para1 = cv2.getTrackbarPos('Param 1','image')
                 para2 = cv2.getTrackbarPos('Param 2','image')
