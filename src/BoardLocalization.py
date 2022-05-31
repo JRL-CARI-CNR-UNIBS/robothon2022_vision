@@ -71,7 +71,7 @@ class BoardLocalization:
         #Acquire the rgb-frame
         self.realsense.acquireOnce()
 
-        rospy.loginfo(RED + "INIZIO A IDENTIFICARE" + END)
+        rospy.loginfo(RED + "Board identification..." + END)
         rgb_frame = self.realsense.getColorFrame()
         images_path = "/home/teamcari/projects/robothon2022_ws/src/robothon2022_vision/file"
         self.realsense.saveImage(images_path +"/frame_acquired" + str(randint(1,10000)) +".png")
@@ -162,7 +162,7 @@ class BoardLocalization:
         new_img = cv2.circle(crop_img, (BlueButtonPos[0],BlueButtonPos[1]), 5, color = (255, 0, 0), thickness = 2)
         new_img = cv2.circle(crop_img, (KeyLockPos[0][0],KeyLockPos[0][1]), 5, color = (255, 0, 0), thickness = 2)
 
-        cv2.imshow("Identificato",new_img)
+        cv2.imshow("Identification",new_img)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
@@ -178,13 +178,13 @@ class BoardLocalization:
         rospy.sleep(1.0)
         found = False
         while not found:
-            print("prova")
+            # print("prova")
             try:
                 (trans,rot) = listener.lookupTransform('base_link', 'camera_color_optical_frame', rospy.Time(0))
                 found = True
-                print("Trovata")
+                # print("Trovata")
             except (tf.LookupException, tf.ConnectivityException):
-                print("non ce un cazzoo")
+                print("There's nothing")
                 rospy.sleep(0.5)
 
         rospy.loginfo(YELLOW + "Trasformata camera_color_optical_frame -> base_link \n :{}".format(trans) + RED)
@@ -192,17 +192,17 @@ class BoardLocalization:
         
         trans_world_camera = tf.transformations.translation_matrix(trans)
         rot_world_camera = tf.transformations.quaternion_matrix(rot)
-        print(trans_world_camera)
-        print(rot_world_camera)
+        # print(trans_world_camera)
+        # print(rot_world_camera)
         M_world_camera = np.dot(trans_world_camera,rot_world_camera)
-        print(M_world_camera)
+        # print(M_world_camera)
 
 
         # self.pubTF(red_button_camera,"red_prima","camera_color_optical_frame")
         # self.pubTF(key_lock_camera,"keuy_prima","camera_color_optical_frame")
         # self.pubTF(screen_camera,"screen_prima","camera_color_optical_frame")
-        print("red button respect camera")
-        print(red_button_camera)
+        # print("Red button respect camera")
+        # print(red_button_camera)
         red_button_world = np.dot(M_world_camera, self.get4Vector(red_button_camera))
         key_lock_world = np.dot(M_world_camera, self.get4Vector(key_lock_camera))
         screen_world = np.dot(M_world_camera, self.get4Vector(screen_camera))
@@ -215,23 +215,23 @@ class BoardLocalization:
         screen_world = screen_world[0:-1]
         screen_world[-1] = 0.1
         
-        print(red_button_world)
-        print(key_lock_world)
-        print(screen_world)
+        # print(red_button_world)
+        # print(key_lock_world)
+        # print(screen_world)
 
         # red_button_camera = np.array(self.realsense.deproject(RedBlueButPos[0][0],RedBlueButPos[0][1],self.depth))
         # key_lock_camera = np.array(self.realsense.deproject(KeyLockPos[0][0],KeyLockPos[0][1],self.depth))
         # screen_camera = np.array(self.realsense.deproject(ScreenPos[0][0],ScreenPos[0][1],self.depth))
 
         x_axis = ( key_lock_world - red_button_world ) / np.linalg.norm( key_lock_world - red_button_world )
-        print(x_axis)
+        # print(x_axis)
         y_axis_first_approach = ( screen_world - red_button_world )
         y_axis_norm = y_axis_first_approach - np.dot(y_axis_first_approach,x_axis)/(np.dot(x_axis,x_axis))*x_axis
         y_axis_norm = y_axis_norm / np.linalg.norm(y_axis_norm)
-        print(y_axis_norm)
+        # print(y_axis_norm)
 
         z_axis = np.cross(x_axis,y_axis_norm)       
-        print(z_axis)
+        # print(z_axis)
         
         rot_mat_camera_board = np.array([x_axis,y_axis_norm,z_axis]).T
         M_camera_board_only_rot = tf.transformations.identity_matrix()
@@ -319,7 +319,7 @@ class BoardLocalization:
         # if srv_response.results == 1:
         #     rospy.loginfo(GREEN + "Location added succesfully" + END)
 
-        static_transformStamped_reference = self.getStaticTrasformStamped("board", "reference", [0.137, 0.094,-0.155],[0.0, 0.0, 0.959,-0.284])
+        static_transformStamped_reference = self.getStaticTrasformStamped("board", "reference", [0.136, 0.099, -0.155],[-0.000, 0.000, 0.957, -0.291])
         tf_key_lock = self.getStaticTrasformStamped("base_link", "key_lock", key_lock_world,rotation_quat)
         
         self.broadcaster.sendTransform([static_transformStamped_board,static_transformStamped_reference,tf_key_lock])

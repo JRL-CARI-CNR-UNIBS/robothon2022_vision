@@ -46,7 +46,7 @@ def getScreen(a_col_in,contours_in):
     set_butt    = False
     for idx,cnt in enumerate(contours_in):
         area = cv2.contourArea(cnt)
-        print(area)
+        # print(area)
         if (area > 15000) or (area < 1000):
             continue
         passed_imgs += 1
@@ -73,7 +73,7 @@ def getScreen(a_col_in,contours_in):
     return np.array([[cX,cY]]), max_idx
 
 def getRedBlueButtonsNewVersion(value_in_gray,b_col_in,contours_in,new_img,ScreenPos):
-    rospy.loginfo(RED + "DENTRO RED BLUE" + END)
+    rospy.loginfo(RED + "INSIDE RED BLUE" + END)
     passed_imgs = 0
     butt_idx    = 0
     std_max     = 0
@@ -88,8 +88,8 @@ def getRedBlueButtonsNewVersion(value_in_gray,b_col_in,contours_in,new_img,Scree
         for idx,cnt in enumerate(contours_in):
             print(idx)
             area = cv2.contourArea(cnt)
-            print("area")
-            print(area)
+            # print("area")
+            # print(area)
             if (area > 5000) or (area < 700):       #era 1000
                 continue
             passed_imgs += 1
@@ -105,8 +105,8 @@ def getRedBlueButtonsNewVersion(value_in_gray,b_col_in,contours_in,new_img,Scree
                 std_max  = np.std(clt.cluster_centers_)
             else:
                 continue
-        print("button idx")
-        print(butt_idx)
+        # print("button idx")
+        # print(butt_idx)
 
         x,y,w,h           = cv2.boundingRect(contours_in[butt_idx])
         butt_image_b      = b_col_in[y:y+h, x:x+w]
@@ -172,7 +172,7 @@ def getRedBlueButtonsNewVersion(value_in_gray,b_col_in,contours_in,new_img,Scree
         
         return center_coordinate_red,center_coordinate_blue, butt_idx
 def tryWithMoreCircle(hough_res, butt_image_b,shift):
-    rospy.loginfo(GREEN + "-----------  DENTRO TRY MORE CIRCLE  --------------" + END)
+    rospy.loginfo(GREEN + "-----------    INSIDE TRY MORE CIRCLE  --------------" + END)
 
     hough_radii = np.arange(7, 12, 1)   #Looking for that radius 5,6,7,..12
     number_of_circles=4
